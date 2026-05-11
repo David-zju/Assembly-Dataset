@@ -19,7 +19,7 @@
 **问题二：约束实体的语义偏差。** 在 CAD 系统中，同一个装配关系可以由不同的拓扑实体等价地定义。用户出于交互便利，常常选择 GUI 中最容易点击的实体而非物理上真正发生接触的实体。例如图1 (b) 所示的销轴-孔配合中，用户选择了销轴的外圆柱面与孔的内圆柱面做 coaxial 约束。这两个面共轴，几何求解器可以正确求解，但物理接触面其实是销轴外表面与孔内表面，标注实体与真实接触面不一致。
 
 <figure style="text-align: center;">
-  <img src="/pictures/ambiguous and under specified.png" alt="描述">
+  <img src="./pictures/ambiguous and under specified.png" alt="描述">
   <figcaption style="display: block; text-align: center;">图1 数据集中的典型标注错误来源</figcaption>
 </figure>
 
@@ -77,7 +77,7 @@ $$FM = (F, \overline{F}, C)$$
 每个 mate 关联一组 face contact。例如一对 hole-shaft mate 通常包含 1 个 cylindrical contact（孔内壁与轴外壁）和 0~1 个 planar contact（孔的端面与轴的肩面）。
 
 <figure style="text-align: center;">
-  <img src="/pictures/assembly feature.png" alt="描述">
+  <img src="./pictures/assembly feature.png" alt="描述">
   <figcaption style="display: block; text-align: center;">图2 装配特征对</figcaption>
 </figure>
 
