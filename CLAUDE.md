@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 装配数据集自动标注项目。从 STEP 装配体文件出发，通过几何接触检测自底向上构建装配语义标注：Face Contact → Assembly Feature → Feature Mate → Pattern / Hub。
 
+上述流程被划分为L0至L4五个阶段。关于目前这几个阶段在项目中的完成情况，请始终保持同步在 [./TODO.md](./TODO.md) 当中。
+
 ## 环境与命令
 
 ```bash
@@ -54,8 +56,13 @@ L4  Pattern (set-to-set) / Hub (one-to-many)
 
 ## 参考文档
 
+- **已验证 API 文档（优先查阅）** — [docs/verified_api/](docs/verified_api/README.md)
+  在使用 CadQuery/OCP API 时，**优先从 `./docs/verified_api/` 中查找已经验证过的 API 说明**，并以此为准（特别是注意事项和坑，要优先以已验证的内容为准）。
+  找不到时再去参考在线文档。
+  任何时候觉得有必要，可以验证 API 的使用，并且**每次验证之后都必须将验证内容同步到 `./docs/verified_api/` 中**，按照该目录的 README.md 中规定的格式归档。
+
 - **CadQuery 官方文档** — https://cadquery.readthedocs.io/en/latest/
-  当遇到以下情况时，应使用 `WebFetch` 工具查阅对应文档页面：
+  仅当 `./docs/verified_api/` 中没有相应 API 的记录时，才使用 `WebFetch` 工具查阅在线文档：
   - 不确定 CadQuery API 的准确用法（如 `cq.Workplane`、`cq.Assembly`、`cq.Shape` 的方法签名）
   - 需要确认 B-rep 拓扑遍历 API（`faces()`、`edges()`、`wires()` 等）
   - STEP 导入/导出参数选项（`cq.importers.importStep()`、`cq.exporters.export()`）
@@ -71,14 +78,16 @@ L4  Pattern (set-to-set) / Hub (one-to-many)
 
 - STEP 文件中的中文名称可能经过多重错误编码转换导致乱码（常见链：UTF-8 字节被当作 Latin-1 解释后重新编码），需要用 [test.py](test.py) 反推正确编码链。
 
+## 边界条件与约束（重要）
 
-## 边界条件
-
-### 应当做的
+### 始终应当做的
 
 - 本项目基于openspec的SDD规范开发，每次做出代码修改时请务必同步到对应文档中，（bug修复有关的内容也包括）。
 - 所有的文档请使用中文编写，以便用户阅读。
 - 编写的代码请用中文编写必要的注释。至少要为每个函数和模块文件编写注释，明确说明用途、参数解释与用例。
+- 智能体应通过“渐进式披露”原则读取文档中的相关文件，例如cadquery有关的文档。当你不清楚有关API的说明、如何使用，或者当你的上下文中已不存在有关内容时，请务必将有关内容加载到你的上下文中。严禁随意猜测。
+- 执行过程必须严格遵守根目录下的宪法级文档（如 `ARCHITECTURE.md`等）。
+- 在设计或实施完成后，使用如下格式向我汇报：(1) 你通过什么方式完成了什么事情，以及你为什么这么做； (2) 你修改了哪些文件； (3) 目前的潜在风险或未验证项。
 
 ### 不应当做的
 
