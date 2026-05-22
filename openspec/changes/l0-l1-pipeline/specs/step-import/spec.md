@@ -8,23 +8,33 @@ STEP 装配体文件导入与扁平化的能力规格。
 
 系统 SHALL 读取 `.step` / `.stp` 文件，解析其装配体结构，并扁平化为 Part 列表。每个 Part 携带其在装配体根坐标系下的 4×4 齐次变换矩阵和被定位后的 B-rep shape 对象。
 
-#### Scenario: 通过 importStep 成功导入大文件
-
-- **WHEN** 输入 `test_case/装配体3.STEP`（32.4 MB）等大型 STEP 文件
-- **THEN** 系统通过 `cq.importers.importStep()` 成功导入，并提取出所有 face（19759 个）
-- **AND** 每个 face 可通过 `TopExp_Explorer` 遍历获取
-
 #### Scenario: 通过 Assembly 成功导入
 
 - **WHEN** 输入具有标准装配体结构的 STEP 文件
 - **THEN** 系统通过 `cq.Assembly.load()` 解析，递归遍历 children 收集带 shape 的叶子节点
 - **AND** 每个叶子节点的 shape 和 location 被正确读取
+- **AND** 输出 Part 列表的 part_boundary_reliable = true
+- **AND** metadata.import_strategy = "assembly_load"
+
+#### Scenario: importStep 仅作为几何诊断兜底
+
+- **WHEN** `cq.Assembly.load()` 失败或无法从装配体 leaf 提取有效 Part face
+- **AND** `cq.importers.importStep()` 可提取 face
+- **THEN** 系统 MAY 生成单个 synthetic Part 用于 L0 几何诊断和 API 验证
+- **AND** part_boundary_reliable = false
+- **AND** metadata.import_strategy = "import_step_fallback"
+- **AND** 系统 SHALL NOT 继续执行 L1 跨 Part 接触检测
 
 #### Scenario: 导入失败时回退
 
-- **WHEN** `cq.Assembly.load()` 失败（抛出异常）
-- **THEN** 系统回退到 `cq.importers.importStep()` 尝试导入
-- **AND** 若两种方式均失败，抛出 `StepImportError` 并记录源文件路径
+- **WHEN** `cq.Assembly.load()` 与 `cq.importers.importStep()` 均无法提取 face
+- **THEN** 系统抛出 `StepImportError` 并记录源文件路径
+
+#### Scenario: importStep 不得作为 Part 边界来源
+
+- **WHEN** `cq.importers.importStep()` 返回单个 Compound 或 solids 列表
+- **THEN** 系统不得将 Compound 内的 solids 解释为可靠 Part 列表
+- **AND** 若继续保留几何诊断输出，则 part_boundary_reliable 必须为 false
 
 ### Requirement: 系统能够处理编码损坏的中文零件名
 

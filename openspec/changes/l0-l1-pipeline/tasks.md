@@ -21,10 +21,11 @@
 
 ## 3. L0: STEP 导入与装配体扁平化
 
-- [ ] 3.1 实现 `src/l0_face_extraction/step_importer.py`：STEP 文件导入入口——优先 `cq.Assembly.load()` 解析装配体结构，失败时回退到 `cq.importers.importStep()`；两种方式均失败时抛出 StepImportError
-- [ ] 3.2 实现 `src/l0_face_extraction/flattener.py`：递归展开 sub-assembly 为扁平 Part 列表；同一零件定义的多个实例各自独立为不同 Part（共享 source_definition_uid）；每个 Part 提取相对于根坐标系的 4×4 齐次变换矩阵
+- [ ] 3.1 实现 `src/l0_face_extraction/step_importer.py`：STEP 文件导入入口——正式装配体导入使用 `cq.Assembly.load()` 解析装配体结构；`cq.importers.importStep()` 仅作为几何诊断兜底，不得将 Compound/solids 解释为可靠 Part；两种方式均无法提取 face 时抛出 StepImportError
+- [ ] 3.2 实现 `src/l0_face_extraction/flattener.py`：递归展开 sub-assembly 为扁平 Part 列表；同一零件定义的多个实例各自独立为不同 Part（共享 source_definition_uid）；每个 Part 提取相对于根坐标系的 4×4 齐次变换矩阵，并记录 assembly_path、root_transform、part_face_count
+- [ ] 3.2.1 实现 Part 边界可靠性标记：Assembly.load 成功且 leaf Part 可提取 face 时设置 part_boundary_reliable = true；importStep fallback 仅生成 synthetic Part 并设置 part_boundary_reliable = false、import_strategy = import_step_fallback
 - [ ] 3.3 实现 `src/l0_face_extraction/encoding_recovery.py`：中文零件名编码恢复——复刻 test.py 的编码链穷举搜索逻辑；恢复失败时使用 `unnamed_part_<索引>` 兜底
-- [ ] 3.4 验证 L0 导入：对 `test_case/装配体3.STEP` 成功提取 19759 个 face；排查 `test_case/001650主臂装配体1.STEP` 的 0 face 问题
+- [ ] 3.4 验证 L0 导入：对 `test_case/装配体3.STEP` 验证 importStep 会返回单个 Compound 且不得作为可靠 Part 来源；排查 `test_case/001650主臂装配体1.STEP` 的 0 face 问题；记录 Assembly.load 性能与 Part 边界可靠性
 
 ## 4. L0: B-rep 面遍历与标识
 
@@ -56,9 +57,9 @@
 
 ## 8. 管道持久化
 
-- [ ] 8.1 实现 `src/common/serialization.py`：L0 输出 JSON 序列化——包含 metadata（source_file, pipeline_version, timestamp, num_faces, supported_face_count, unsupported_face_count）、parts 数组、faces 数组；faces 数组保留所有拓扑 face，并包含 global_face_index、part_face_index、supported、skip_reason；确保输出文件 < 10MB（19759 面场景）
+- [ ] 8.1 实现 `src/common/serialization.py`：L0 输出 JSON 序列化——包含 metadata（source_file, pipeline_version, timestamp, num_faces, supported_face_count, unsupported_face_count, import_strategy, part_boundary_reliable）、parts 数组、faces 数组；parts 数组包含 assembly_path、source_definition_uid、root_transform、part_face_count；faces 数组保留所有拓扑 face，并包含 global_face_index、part_face_index、supported、skip_reason；确保输出文件 < 10MB（19759 面场景）
 - [ ] 8.2 实现 L0 JSON 反序列化：L1 独立加载 L0 JSON 后还原 Part 列表和 face 元数据列表
-- [ ] 8.3 实现 L1 STEP 独立加载与 face_uid 匹配：L1 重新导入 STEP，按完整 TopExp_Explorer 拓扑 face 遍历顺序匹配 face_uid；首尾面几何指纹校验（容差 1e-4），不匹配时输出 WARNING 并回退到 O(N²) 全量指纹匹配；恢复后的 face_uid → cq.Face 映射覆盖 supported 和 unsupported face
+- [ ] 8.3 实现 L1 STEP 独立加载与 face_uid 匹配：L1 读取 L0 metadata，若 part_boundary_reliable = false 则拒绝执行跨 Part 接触检测；若 import_strategy = assembly_load，则使用 `cq.Assembly.load()` 和 parts[].assembly_path 恢复 Part，并按 part_uid + part_face_index 匹配 face_uid；指纹不匹配时在同一 Part 内回退到全量指纹匹配；恢复后的 face_uid → cq.Face 映射覆盖 supported 和 unsupported face
 - [ ] 8.4 实现 `src/pipeline/pipeline_context.py`：PipelineContext 层间数据容器——按层存储输出数据，支持层间读写和序列化全量管道状态
 
 ## 9. 管道编排与 CLI

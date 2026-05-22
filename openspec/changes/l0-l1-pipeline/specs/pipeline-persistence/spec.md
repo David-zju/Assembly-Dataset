@@ -11,8 +11,9 @@
 #### Scenario: 序列化包含所有必要信息
 
 - **WHEN** L0 处理完装配体（例如 19759 个面）
-- **THEN** 输出 JSON 包含：metadata（source_file, pipeline_version, timestamp, num_faces）、parts 数组、faces 数组
+- **THEN** 输出 JSON 包含：metadata（source_file, pipeline_version, timestamp, num_faces, import_strategy, part_boundary_reliable）、parts 数组、faces 数组
 - **AND** faces 数组中每个元素包含 face_uid, part_uid, global_face_index, part_face_index, geom_type, supported, skip_reason, fingerprint
+- **AND** parts 数组中每个元素包含 part_uid, name, assembly_path, source_definition_uid, root_transform, part_face_count
 
 #### Scenario: 反序列化恢复 L0 数据
 
@@ -22,20 +23,28 @@
 
 ### Requirement: L1 可独立加载 STEP 并匹配 face_uid
 
-系统 SHALL 在 L1 加载时，独立重新导入 STEP 文件，按 TopExp_Explorer 遍历顺序匹配 face_uid，并通过几何指纹进行首尾校验。
+系统 SHALL 在 L1 加载时，独立重新导入 STEP 文件，使用 L0 记录的 import_strategy 和 Part manifest 恢复 Part 列表，并按 part_uid + part_face_index 匹配 face_uid，通过几何指纹进行校验。
 
-#### Scenario: 索引匹配成功
+#### Scenario: Assembly Part 匹配成功
 
-- **WHEN** L1 按遍历顺序对应 face_uid
+- **WHEN** L0 metadata.import_strategy = "assembly_load" 且 part_boundary_reliable = true
+- **AND** L1 通过 `cq.Assembly.load()` 重新导入并按 assembly_path 恢复 Part
+- **AND** L1 按 part_uid + part_face_index 对应 face_uid
 - **THEN** 首尾面的几何指纹与 L0 记录一致（容差 1e-4）
 - **AND** 构建覆盖所有拓扑 face 的 face_uid → cq.Face 内存映射用于后续几何查询
 - **AND** L1 面分类、空间索引和接触判定仅使用 supported = true 的 face
 
+#### Scenario: Part 边界不可靠时禁止 L1
+
+- **WHEN** L0 metadata.part_boundary_reliable = false
+- **THEN** L1 SHALL refuse to run cross-Part contact detection
+- **AND** 系统输出明确错误或诊断状态，说明 importStep fallback 无可靠 Part 边界
+
 #### Scenario: 指纹不匹配回退
 
-- **WHEN** 首尾面的几何指纹与 L0 记录不匹配（遍历顺序被破坏）
+- **WHEN** 按 part_uid + part_face_index 匹配后的几何指纹与 L0 记录不匹配（遍历顺序被破坏）
 - **THEN** 系统输出 WARNING 日志
-- **AND** 切换为全量指纹匹配模式（O(N²) 搜索最近指纹）
+- **AND** 切换为同一 Part 内全量指纹匹配模式
 
 ### Requirement: JSON 文件大小合理
 
