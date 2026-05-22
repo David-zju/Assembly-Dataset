@@ -20,6 +20,12 @@
 - **THEN** 该对直接跳过，不进入几何接触判定
 - **AND** 任何 expanded AABB 相交的跨 Part face pair 均作为候选输出
 
+#### Scenario: BVH 候选对不重复且过滤同 Part
+
+- **WHEN** 多个 face 的 expanded AABB 相交，且其中部分 face 属于同一 Part
+- **THEN** 系统仅输出跨 Part 的候选 face pair
+- **AND** 同一个无序 face pair 最多输出一次
+
 ### Requirement: 系统能够检测 Planar Contact
 
 系统 SHALL 检测两个不同 Part 上的 PLANE 类型 face 是否构成平面接触。判定条件：法向量反向（180° ± max_angle_deg）、共面（距离 < max_distance_mm）、两个 trimmed face 在平面局部 2D 坐标中的投影重叠（bbox 近似或后续精确判定）。

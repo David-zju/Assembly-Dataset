@@ -13,7 +13,10 @@
 ## 2. 几何工具函数
 
 - [ ] 2.1 实现 `src/common/geometry.py`：封装常用 OCP 几何计算函数——向量点积/叉积、gp_Dir.Angle() 角度计算、gp_Pln.Distance() 点面距离、坐标系变换（4×4 齐次矩阵）
-- [ ] 2.2 实现 `src/common/spatial_index.py`：AABB 包围盒类 + 膨胀/相交测试 + AABB Tree/BVH 构建与相交 pair 查询；树叶节点容量、search_radius 可配置
+- [ ] 2.2 实现 `src/common/spatial_index.py`：AABB 包围盒类 + 膨胀/相交测试 + AABB Tree/BVH 构建与相交 pair 查询；树叶节点容量、最大深度、search_radius 可配置
+- [ ] 2.2.1 实现 BVH 节点结构：节点保存 union bbox、left/right 子节点、叶节点 items；AABB 条目保存 min/max、face_uid、part_uid、geom_type
+- [ ] 2.2.2 实现 BVH 构建：按 AABB center 的最长跨度轴 median split；`bvh_leaf_size` 默认 8；center 退化时按索引强制二分；达到 `bvh_max_depth` 时生成叶节点
+- [ ] 2.2.3 实现 BVH 自相交查询：树-树遍历枚举 expanded AABB 相交 pair；过滤同 Part pair；用 expanded AABB overlap 复核；使用排序后的 face_uid pair 去重
 - [ ] 2.3 实现 `src/common/fingerprint.py`：几何指纹计算（geomType + area + center + bbox），含跨导入一致性校验接口（容差 1e-4）
 
 ## 3. L0: STEP 导入与装配体扁平化
@@ -66,7 +69,7 @@
 ## 10. 测试
 
 - [ ] 10.1 创建 `tests/fixtures/` 极简测试 STEP 文件：1-3 个面/零件的装配体（含 PLANE 和 CYLINDER 面），用于 L0 和 L1 单元测试
-- [ ] 10.2 编写 `tests/test_common/` 公共模块测试：UID 管理器（唯一性、格式正确性、不可变性）、容差管理（加载正确性）、几何工具（距离/角度计算与手动验证一致）
+- [ ] 10.2 编写 `tests/test_common/` 公共模块测试：UID 管理器（唯一性、格式正确性、不可变性）、容差管理（加载正确性）、几何工具（距离/角度计算与手动验证一致）、AABB/BVH（相交 pair、不相交排除、同 Part 过滤、去重、center 退化、长窄 AABB 端部相交）
 - [ ] 10.3 编写 `tests/test_l0/` L0 单元测试：装配体扁平化（多实例零件属性）、B-rep 面遍历（类型分布统计）、编码恢复（中文名用例）、L0 输出序列化/反序列化
 - [ ] 10.4 编写 `tests/test_l1/` L1 单元测试：Planar 接触判定（法向量±180°通过、非反向拒绝、同 Part 跳过）、Cylindrical 接触判定（孔轴配合通过、同类型拒绝、半径不匹配拒绝）、Tangency 接触判定（相切通过、不平行拒绝）、Contact UID 连续分配
 - [ ] 10.5 编写 `tests/integration/` 集成测试：L0→L1 完整管道 E2E（对 fixture STEP 文件运行全管道，验证 face_uid/contact_uid 引用完整性）
