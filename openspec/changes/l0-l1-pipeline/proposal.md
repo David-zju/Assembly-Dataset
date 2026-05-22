@@ -27,5 +27,5 @@
 
 - **新增目录**: `src/l0_face_extraction/`, `src/l1_contact_detection/`, `src/common/`, `src/pipeline/`, `configs/`
 - **依赖**: CadQuery 2.7.0 + OCP 7.8.1.1，numpy（用于矩阵运算和空间计算）
-- **测试数据**: `test_case/装配体3.STEP`（19759 面，验证大文件性能）和 `test_case/001650主臂装配体1.STEP`（待解决的小文件导入问题）
-- **风险**: 001650 文件面提取失败（原因待调查），需在 L0 实现中优先处理；真实 STEP 文件的 wire 提取须使用 TopExp_Explorer 而非 CadQuery 封装方法
+- **测试数据**: `test_case/simple_l0_l1_assembly.step`（3 Part / 15 face，小型有效装配验证件）和 `test_case/装配体3.STEP`（19759 面，验证大文件几何性能）
+- **风险**: `importStep()` 会将大型装配体压成单个 Compound，不能作为可靠 Part 边界来源；真实 STEP 文件的 wire 提取须使用 TopExp_Explorer 而非 CadQuery 封装方法

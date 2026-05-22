@@ -51,7 +51,7 @@ Assembly 叶子节点的 `.obj` 可能是 `Compound` 类型。Compound 的以下
 - `obj.CompSolids()` → 空 list
 - `TopExp_Explorer` 遍历 FACE/SOLID/SHELL → 0 个
 
-**当前状态**：从 `test_case/001650主臂装配体1.STEP` 文件导入时，36 个叶子节点均为 Compound，但所有几何提取方法均返回空。`importStep` 同样返回空。**此行为需要在实现阶段进一步调查**。
+**当前状态**：从 `test_case/001650主臂装配体1.STEP` 文件导入时，36 个叶子节点均为 Compound，但所有几何提取方法均返回空。`importStep` 同样返回空。该文件已由人工检查确认为无效模型，后续不再作为验证数据使用。
 
 ### Part 边界可靠性
 
@@ -109,14 +109,14 @@ for step_name in ['test_case/装配体3.STEP', 'test_case/机器狗.STEP']:
 **实际结果**：两个文件均提取到 **19,759 个 face**
 **结论**：`importStep` + `TopExp_Explorer` 对大型 STEP 文件的几何提取有效，但不保证保留装配体 Part 边界
 
-### 验证场景 3：小 STEP 文件导入问题（待解决）
+### 验证场景 3：无效小 STEP 文件导入问题（历史记录，不再用于验证）
 
 **日期**：2026-05-11
 **模型/数据**：`test_case/001650主臂装配体1.STEP`（110 KB）
 **代码**：同验证场景 2
 **预期行为**：应能提取 face
 **实际结果**：Assembly 有 36 个 children，但 `importStep` 返回 face 数为 0
-**结论**：该特定文件的格式（Assembly 结构但 Compound 内部为空）需要进一步调查。可能原因：外部引用、编码问题或 STEP 格式变体
+**结论**：该文件后续经人工检查确认为无效模型，不再作为验证数据使用。
 
 ## 已验证场景
 
@@ -137,7 +137,7 @@ for f in faces:
 **实际结果**：6 个 PLANE 面 ✓
 **结论**：CadQuery 构建的模型完全可用
 
-### 验证场景 2：真实 STEP 文件导入（待解决）
+### 验证场景 2：无效真实 STEP 文件导入（历史记录，不再用于验证）
 
 **日期**：2026-05-11
 **模型/数据**：`test_case/001650主臂装配体1.STEP`（110 KB）
@@ -157,7 +157,7 @@ imported = cq.importers.importStep('test_case/001650主臂装配体1.STEP')
 ```
 **预期行为**：应能从 STEP 文件中提取出 face 列表
 **实际结果**：Assembly 结构存在（36 个命名子组件），但 face 遍历返回空
-**结论**：**需要在实现阶段进一步调查** — 可能是编码问题、STEP 格式特性或 OCP 配置问题。作为 L0 实现的首要任务之一。
+**结论**：该文件后续经人工检查确认为无效模型，不再作为验证数据使用。
 
 ### 验证场景 3：importStep 会压平大型装配体 Part 边界
 
@@ -208,3 +208,65 @@ faces: 19759
 top_face_counts: [19759] sum: 19759
 ```
 **结论**：`importStep()` 能提取几何，但会将大型装配体压成单个 `Compound`，不能作为可靠 Part 边界来源。L0 正式装配体导入应以 `cq.Assembly.load()` 的装配树为准；`importStep()` 只能作为几何诊断兜底，并应标记 `part_boundary_reliable = false`。
+
+### 验证场景 4：小型有效装配 STEP 的 Part 边界恢复
+
+**日期**：2026-05-22
+**模型/数据**：`test_case/simple_l0_l1_assembly.step`（由 CadQuery Assembly 生成，包含 base_plate、top_block、vertical_pin 三个 Part）
+**代码**：
+```python
+import cadquery as cq
+from OCP.TopAbs import TopAbs_FACE
+from OCP.TopExp import TopExp_Explorer
+
+
+def count_faces(shape):
+    exp = TopExp_Explorer(shape.wrapped, TopAbs_FACE)
+    count = 0
+    while exp.More():
+        count += 1
+        exp.Next()
+    return count
+
+
+def collect_leaves(assy):
+    leaves = []
+
+    def rec(node, path="root"):
+        for index, child in enumerate(getattr(node, "children", []) or []):
+            child_path = f"{path}/{index}:{getattr(child, 'name', '')}"
+            if getattr(child, "obj", None) is not None:
+                leaves.append((child_path, type(child.obj).__name__, count_faces(child.obj)))
+            rec(child, child_path)
+
+    rec(assy)
+    return leaves
+
+
+step_file = "test_case/simple_l0_l1_assembly.step"
+assembly = cq.Assembly.load(step_file)
+leaves = collect_leaves(assembly)
+print("Assembly leaves:", leaves)
+
+imported = cq.importers.importStep(step_file)
+vals = imported.vals()
+print("importStep vals:", len(vals), [type(v).__name__ for v in vals])
+print("importStep solids:", len(imported.solids().vals()))
+print("importStep faces:", len(imported.faces().vals()))
+```
+**预期行为**：`Assembly.load()` 能恢复 3 个 Part；`importStep()` 仍可能只返回几何 Compound。
+**实际结果**：
+```text
+Assembly root_children 3
+leaves_with_obj 3
+face_sum 15
+Assembly leaves [
+  ('root/0:base_plate', 'Solid', 6),
+  ('root/1:top_block', 'Solid', 6),
+  ('root/2:vertical_pin', 'Solid', 3)
+]
+importStep vals 1 ['Compound']
+solids 3
+faces 15
+```
+**结论**：`simple_l0_l1_assembly.step` 是小型有效装配验证件。`Assembly.load()` 可恢复可靠 Part 边界；`importStep()` 仍只适合作为几何兜底。

@@ -25,7 +25,7 @@
 - [ ] 3.2 实现 `src/l0_face_extraction/flattener.py`：递归展开 sub-assembly 为扁平 Part 列表；同一零件定义的多个实例各自独立为不同 Part（共享 source_definition_uid）；每个 Part 提取相对于根坐标系的 4×4 齐次变换矩阵，并记录 assembly_path、root_transform、part_face_count
 - [ ] 3.2.1 实现 Part 边界可靠性标记：Assembly.load 成功且 leaf Part 可提取 face 时设置 part_boundary_reliable = true；importStep fallback 仅生成 synthetic Part 并设置 part_boundary_reliable = false、import_strategy = import_step_fallback
 - [ ] 3.3 实现 `src/l0_face_extraction/encoding_recovery.py`：中文零件名编码恢复——复刻 test.py 的编码链穷举搜索逻辑；恢复失败时使用 `unnamed_part_<索引>` 兜底
-- [ ] 3.4 验证 L0 导入：对 `test_case/装配体3.STEP` 验证 importStep 会返回单个 Compound 且不得作为可靠 Part 来源；排查 `test_case/001650主臂装配体1.STEP` 的 0 face 问题；记录 Assembly.load 性能与 Part 边界可靠性
+- [ ] 3.4 验证 L0 导入：对 `test_case/simple_l0_l1_assembly.step` 验证 Assembly.load 可恢复 3 个 Part / 15 个 face；对 `test_case/装配体3.STEP` 验证 importStep 会返回单个 Compound 且不得作为可靠 Part 来源；记录 Assembly.load 性能与 Part 边界可靠性
 
 ## 4. L0: B-rep 面遍历与标识
 
