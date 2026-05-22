@@ -7,7 +7,7 @@
 建议使用独立的 Conda 环境，避免和系统 Python、VS Code 解释器混用。
 
 ```bash
-conda create -n cadquery python=3.11 -y
+conda create -n cadquery python=3.13 -y
 conda activate cadquery
 ```
 
