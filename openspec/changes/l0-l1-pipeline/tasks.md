@@ -7,13 +7,13 @@
 - [ ] 1.5 实现 `src/common/exceptions.py`：定义异常类层次（StepImportError, UIDError, SerializationError, FingerprintMismatchError）
 - [ ] 1.6 实现 `src/common/logging.py`：`get_logger(name)` 工厂函数，从 `configs/logging.yaml` 加载配置
 - [ ] 1.7 实现 `src/common/tolerances.py`：加载 `configs/thresholds.yaml` 并提供统一容差访问接口
-- [ ] 1.8 实现 `src/common/uid_manager.py`：UID 生成器，支持 part_uid（`p-{seq:04d}`）、face_uid（`f-{part_seq:04d}-{face_seq:04d}`）、contact_uid（`c-{seq:06d}`），保证全局唯一且不可修改
+- [ ] 1.8 实现 `src/common/uid_manager.py`：UID 生成器，支持 part_uid（`p-{seq:04d}`）、face_uid（`f-{part_seq:04d}-{face_seq:05d}`）、contact_uid（`c-{seq:06d}`），保证全局唯一且不可修改
 - [ ] 1.9 实现 `src/common/data_models.py`：定义 Part, FaceMetadata, FaceContact, ContactType 等核心数据类（使用 `__slots__` 优化内存）
 
 ## 2. 几何工具函数
 
 - [ ] 2.1 实现 `src/common/geometry.py`：封装常用 OCP 几何计算函数——向量点积/叉积、gp_Dir.Angle() 角度计算、gp_Pln.Distance() 点面距离、坐标系变换（4×4 齐次矩阵）
-- [ ] 2.2 实现 `src/common/spatial_index.py`：AABB 包围盒类 + 相交测试；KD-Tree 构建与近邻搜索（多采样点策略：小面 1 点、中面 9 点、大面 25 点）
+- [ ] 2.2 实现 `src/common/spatial_index.py`：AABB 包围盒类 + 膨胀/相交测试 + AABB Tree/BVH 构建与相交 pair 查询；树叶节点容量、search_radius 可配置
 - [ ] 2.3 实现 `src/common/fingerprint.py`：几何指纹计算（geomType + area + center + bbox），含跨导入一致性校验接口（容差 1e-4）
 
 ## 3. L0: STEP 导入与装配体扁平化
@@ -34,14 +34,14 @@
 ## 5. L1: 面分类与空间索引
 
 - [ ] 5.1 实现 `src/l1_contact_detection/face_classifier.py`：将所有 face 按 geomType 分组为 planes[], cylinders[], cones[], spheres[], tori[]；统计并记录类型分布
-- [ ] 5.2 实现 `src/l1_contact_detection/spatial_index.py`：为全部候选 face 构建 AABB 粗筛 + KD-Tree 精搜索引；支持按 search_radius 膨胀 AABB
-- [ ] 5.3 实现候选对生成：对所有跨 Part 的 (face_i, face_j) 对，先用 AABB 粗筛排除不相交对，再用 KD-Tree 生成候选对列表
+- [ ] 5.2 实现 `src/l1_contact_detection/candidate_generator.py`：复用 `src/common/spatial_index.py` 的 expanded AABB 与 AABB Tree/BVH 能力，为全部候选 face 保守生成跨 Part 候选对；支持按 search_radius 膨胀 AABB
+- [ ] 5.3 实现候选对生成策略：通过 AABB Tree/BVH 枚举 expanded AABB 相交的 pair，过滤同 Part pair；避免先枚举所有跨 Part 的 (face_i, face_j) 对；确保任何真实接触 pair 不会在索引阶段被漏掉
 
 ## 6. L1: 几何接触判定
 
-- [ ] 6.1 实现 `src/l1_contact_detection/planar_contact.py`：Planar 接触判定——法向量反向检查（180° ± max_angle_deg）、共面距离检查（< max_distance_mm）、bbox 投影重叠检查（Level 1 bbox 近似 + Level 2 形状简化判定）；同一 Part 内 face 直接跳过
-- [ ] 6.2 实现 `src/l1_contact_detection/cylindrical_contact.py`：Cylindrical 接触判定——shaft/hole 分类（dot(normal_at_mid, vector_to_surface) 符号）、共轴检查（轴线夹角 + 径向距离）、半径匹配（半径差比 < max_radius_ratio）、轴向重叠（重叠长度比 > min_overlap_length_ratio）
-- [ ] 6.3 实现 `src/l1_contact_detection/tangency_contact.py`：Tangency 接触判定——圆柱轴线平行于平面法向量检查、|dist(axis, plane) - radius| < max_distance_mm 检查
+- [ ] 6.1 实现 `src/l1_contact_detection/planar_contact.py`：Planar 接触判定——法向量反向检查（180° ± max_angle_deg）、共面距离检查（< max_distance_mm）、trimmed face 的平面局部 2D 投影重叠检查（Level 1 bbox 近似 + Level 2 形状简化判定）；仅 bbox 近似命中时设置 confidence < 1.0 与 needs_exact_overlap；同一 Part 内 face 直接跳过
+- [ ] 6.2 实现 `src/l1_contact_detection/cylindrical_contact.py`：Cylindrical 接触判定——shaft/hole 分类（dot(normal_at_mid, vector_to_surface) 符号）、共轴检查（轴线夹角 + 径向距离）、半径匹配（半径差比 < max_radius_ratio）、trimmed face 的轴向区间重叠（重叠长度比 > min_overlap_length_ratio），并预留周向覆盖验证接口
+- [ ] 6.3 实现 `src/l1_contact_detection/tangency_contact.py`：Tangency 接触判定——圆柱轴线平行于平面（即垂直于平面法向量）检查、|dist(axis, plane) - radius| < max_distance_mm 检查、切线落在平面 face 边界和圆柱 V 参数范围内的有限边界检查
 - [ ] 6.4 统一接触判定入口：对候选对按 (type_i, type_j) 组合路由到对应判定函数；记录判定所得 confidence 和中间参数
 
 ## 7. L1: 接触组装与输出

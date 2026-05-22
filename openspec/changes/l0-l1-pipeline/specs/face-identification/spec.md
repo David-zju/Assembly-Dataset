@@ -22,7 +22,7 @@ B-rep 面遍历与 UID 分配的能力规格。
 
 ### Requirement: 系统能够为 Part 和 Face 分配全局唯一 UID
 
-系统 SHALL 为每个 Part 分配 `part_uid`（格式 `p-{seq:04d}`），为每个 Face 分配 `face_uid`（格式 `f-{part_seq:04d}-{face_seq:04d}`）。UID 在同一管道运行中全局唯一，分配后不可修改。
+系统 SHALL 为每个 Part 分配 `part_uid`（格式 `p-{seq:04d}`），为每个 Face 分配 `face_uid`（格式 `f-{part_seq:04d}-{face_seq:05d}`）。UID 在同一管道运行中全局唯一，分配后不可修改。
 
 #### Scenario: UID 格式正确性
 
@@ -55,5 +55,5 @@ B-rep 面遍历与 UID 分配的能力规格。
 #### Scenario: 指纹一致性校验
 
 - **WHEN** L1 重新导入同一 STEP 文件并遍历 face
-- **THEN** 第 0 个 face 的几何指纹与 L0 输出中的 fingerint 匹配（容差 1e-4）
+- **THEN** 第 0 个 face 的几何指纹与 L0 输出中的 fingerprint 匹配（容差 1e-4）
 - **AND** 最后一个 face 的指纹同样匹配
