@@ -8,7 +8,7 @@
 - [ ] 1.6 实现 `src/common/logging.py`：`get_logger(name)` 工厂函数，从 `configs/logging.yaml` 加载配置
 - [ ] 1.7 实现 `src/common/tolerances.py`：加载 `configs/thresholds.yaml` 并提供统一容差访问接口
 - [ ] 1.8 实现 `src/common/uid_manager.py`：UID 生成器，支持 part_uid（`p-{seq:04d}`）、face_uid（`f-{part_seq:04d}-{face_seq:05d}`）、contact_uid（`c-{seq:06d}`），保证全局唯一且不可修改
-- [ ] 1.9 实现 `src/common/data_models.py`：定义 Part, FaceMetadata, FaceContact, ContactType 等核心数据类（使用 `__slots__` 优化内存）
+- [ ] 1.9 实现 `src/common/data_models.py`：定义 Part, FaceMetadata, FaceContact, ContactType 等核心数据类（使用 `__slots__` 优化内存）；FaceMetadata 包含 face_uid、part_uid、global_face_index、part_face_index、geom_type、supported、skip_reason、fingerprint
 
 ## 2. 几何工具函数
 
@@ -29,15 +29,15 @@
 ## 4. L0: B-rep 面遍历与标识
 
 - [ ] 4.1 实现 `src/l0_face_extraction/face_traversal.py`：用 `TopExp_Explorer(wrapped, TopAbs_FACE)` 遍历每个 Part 的所有 B-rep face；为每个 face 调用 `geomType()` 判定类型（PLANE/CYLINDER/CONE/SPHERE/TORUS/BSPLINE/BEZIER/OTHER）
-- [ ] 4.2 实现面类型过滤：BEZIER / BSPLINE / OTHER 类型记录 DEBUG 日志后跳过；统计并输出 skipped_face_count
-- [ ] 4.3 实现 Part 和 Face UID 分配：按遍历顺序为每个 Part 分配 part_uid，为每个 face 分配 face_uid；构建 `Dict[face_uid, cq.Face]` 内存映射
-- [ ] 4.4 实现几何指纹生成：为每个有效 face 计算几何指纹（geomType + area + center + bbox），与 face_uid 关联存储
+- [ ] 4.2 实现面支持状态标记：BEZIER / BSPLINE / OTHER 类型记录 DEBUG 日志并标记 supported = false、skip_reason = unsupported_geom_type；统计并输出 skipped_face_count，但不得从 L0 输出中删除这些 face
+- [ ] 4.3 实现 Part 和 Face UID 分配：按完整拓扑遍历顺序为每个 Part 分配 part_uid，为每个 face 分配 face_uid、global_face_index、part_face_index；构建覆盖所有拓扑 face 的 `Dict[face_uid, cq.Face]` 内存映射
+- [ ] 4.4 实现几何指纹生成：为每个拓扑 face 计算几何指纹（geomType + area + center + bbox），与 face_uid 关联存储；unsupported face 同样生成指纹用于跨进程身份校验
 - [ ] 4.5 实现 L0 输出结构 `src/l0_face_extraction/l0_output.py`：组装 L0 输出（Part 列表 + face 元数据列表 + 几何指纹 + metadata），提供 `to_dict()` 和 `from_dict()` 序列化接口
 
 ## 5. L1: 面分类与空间索引
 
-- [ ] 5.1 实现 `src/l1_contact_detection/face_classifier.py`：将所有 face 按 geomType 分组为 planes[], cylinders[], cones[], spheres[], tori[]；统计并记录类型分布
-- [ ] 5.2 实现 `src/l1_contact_detection/candidate_generator.py`：复用 `src/common/spatial_index.py` 的 expanded AABB 与 AABB Tree/BVH 能力，为全部候选 face 保守生成跨 Part 候选对；支持按 search_radius 膨胀 AABB
+- [ ] 5.1 实现 `src/l1_contact_detection/face_classifier.py`：仅将 supported = true 的 face 按 geomType 分组为 planes[], cylinders[], cones[], spheres[], tori[]；统计并记录完整类型分布、supported_count、unsupported_count
+- [ ] 5.2 实现 `src/l1_contact_detection/candidate_generator.py`：复用 `src/common/spatial_index.py` 的 expanded AABB 与 AABB Tree/BVH 能力，为 supported = true 的候选 face 保守生成跨 Part 候选对；支持按 search_radius 膨胀 AABB
 - [ ] 5.3 实现候选对生成策略：通过 AABB Tree/BVH 枚举 expanded AABB 相交的 pair，过滤同 Part pair；避免先枚举所有跨 Part 的 (face_i, face_j) 对；确保任何真实接触 pair 不会在索引阶段被漏掉
 
 ## 6. L1: 几何接触判定
@@ -56,9 +56,9 @@
 
 ## 8. 管道持久化
 
-- [ ] 8.1 实现 `src/common/serialization.py`：L0 输出 JSON 序列化——包含 metadata（source_file, pipeline_version, timestamp, num_faces）、parts 数组、faces 数组；确保输出文件 < 10MB（19759 面场景）
+- [ ] 8.1 实现 `src/common/serialization.py`：L0 输出 JSON 序列化——包含 metadata（source_file, pipeline_version, timestamp, num_faces, supported_face_count, unsupported_face_count）、parts 数组、faces 数组；faces 数组保留所有拓扑 face，并包含 global_face_index、part_face_index、supported、skip_reason；确保输出文件 < 10MB（19759 面场景）
 - [ ] 8.2 实现 L0 JSON 反序列化：L1 独立加载 L0 JSON 后还原 Part 列表和 face 元数据列表
-- [ ] 8.3 实现 L1 STEP 独立加载与 face_uid 匹配：L1 重新导入 STEP，按 TopExp_Explorer 遍历顺序匹配 face_uid；首尾面几何指纹校验（容差 1e-4），不匹配时输出 WARNING 并回退到 O(N²) 全量指纹匹配
+- [ ] 8.3 实现 L1 STEP 独立加载与 face_uid 匹配：L1 重新导入 STEP，按完整 TopExp_Explorer 拓扑 face 遍历顺序匹配 face_uid；首尾面几何指纹校验（容差 1e-4），不匹配时输出 WARNING 并回退到 O(N²) 全量指纹匹配；恢复后的 face_uid → cq.Face 映射覆盖 supported 和 unsupported face
 - [ ] 8.4 实现 `src/pipeline/pipeline_context.py`：PipelineContext 层间数据容器——按层存储输出数据，支持层间读写和序列化全量管道状态
 
 ## 9. 管道编排与 CLI
@@ -70,7 +70,7 @@
 
 - [ ] 10.1 创建 `tests/fixtures/` 极简测试 STEP 文件：1-3 个面/零件的装配体（含 PLANE 和 CYLINDER 面），用于 L0 和 L1 单元测试
 - [ ] 10.2 编写 `tests/test_common/` 公共模块测试：UID 管理器（唯一性、格式正确性、不可变性）、容差管理（加载正确性）、几何工具（距离/角度计算与手动验证一致）、AABB/BVH（相交 pair、不相交排除、同 Part 过滤、去重、center 退化、长窄 AABB 端部相交）
-- [ ] 10.3 编写 `tests/test_l0/` L0 单元测试：装配体扁平化（多实例零件属性）、B-rep 面遍历（类型分布统计）、编码恢复（中文名用例）、L0 输出序列化/反序列化
+- [ ] 10.3 编写 `tests/test_l0/` L0 单元测试：装配体扁平化（多实例零件属性）、B-rep 面遍历（类型分布统计）、编码恢复（中文名用例）、L0 输出序列化/反序列化、unsupported face 保留 face_uid 和遍历索引且不造成跨进程映射错位
 - [ ] 10.4 编写 `tests/test_l1/` L1 单元测试：Planar 接触判定（法向量±180°通过、非反向拒绝、同 Part 跳过）、Cylindrical 接触判定（孔轴配合通过、同类型拒绝、半径不匹配拒绝）、Tangency 接触判定（相切通过、不平行拒绝）、Contact UID 连续分配
 - [ ] 10.5 编写 `tests/integration/` 集成测试：L0→L1 完整管道 E2E（对 fixture STEP 文件运行全管道，验证 face_uid/contact_uid 引用完整性）
 

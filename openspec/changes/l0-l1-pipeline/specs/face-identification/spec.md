@@ -14,11 +14,12 @@ B-rep 面遍历与 UID 分配的能力规格。
 - **THEN** 系统输出所有 face 的几何类型（PLANE / CYLINDER / CONE / SPHERE / TORUS / BSPLINE / BEZIER / OTHER）
 - **AND** 类型分布统计可用于验证导入正确性
 
-#### Scenario: 跳过不支持的几何类型
+#### Scenario: 标记不支持的几何类型
 
 - **WHEN** face 的 geomType 为 BEZIER 或 OTHER
-- **THEN** 系统记录 DEBUG 日志并跳过该 face
-- **AND** 管道统计中记录 skipped_face_count
+- **THEN** 系统记录 DEBUG 日志并将该 face 标记为 supported = false
+- **AND** 系统为该 face 保留 face_uid、global_face_index、part_face_index 和 fingerprint
+- **AND** 管道统计中记录 skipped_face_count，但该 face 不得从 L0 输出和 face_uid 映射中删除
 
 ### Requirement: 系统能够为 Part 和 Face 分配全局唯一 UID
 
@@ -40,7 +41,7 @@ B-rep 面遍历与 UID 分配的能力规格。
 
 ### Requirement: 系统能够构建 face_uid 到 Face 对象的内存映射
 
-系统 SHALL 维护 `face_uid → cq.Face` 的映射关系，供 L1 按需查询几何属性。映射基于 TopExp_Explorer 遍历顺序（已验证确定性）。
+系统 SHALL 维护 `face_uid → cq.Face` 的映射关系，供 L1 按需查询几何属性。映射基于 TopExp_Explorer 的完整拓扑 face 遍历顺序（已验证确定性），包含 supported 和 unsupported face。
 
 #### Scenario: 通过 face_uid 获取 Face 对象
 

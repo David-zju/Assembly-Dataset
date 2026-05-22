@@ -6,13 +6,13 @@
 
 ### Requirement: 系统能够对面进行类型分类与空间索引
 
-系统 SHALL 在接触检测前，将所有 face 按 geomType 分类，并为所有候选 face 构建基于 expanded AABB 的 AABB Tree/BVH 空间索引，以保守且高效地生成可能接触的跨 Part face pair。
+系统 SHALL 在接触检测前，将 supported = true 的 face 按 geomType 分类，并为这些候选 face 构建基于 expanded AABB 的 AABB Tree/BVH 空间索引，以保守且高效地生成可能接触的跨 Part face pair。
 
 #### Scenario: 面分类
 
 - **WHEN** 管道处理包含 PLANE / CYLINDER / CONE / SPHERE / TORUS / BSPLINE 等类型面的装配体
 - **THEN** 面被分组为 planes[], cylinders[], cones[], spheres[], tori[] 等
-- **AND** BEZIER / BSPLINE / OTHER 类型被跳过并记录 DEBUG 日志
+- **AND** supported = false 的 face 不进入 L1 分类、空间索引和接触判定
 
 #### Scenario: AABB Tree/BVH 保守候选生成
 

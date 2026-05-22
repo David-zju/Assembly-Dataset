@@ -206,7 +206,7 @@ L1 FaceContact 的两个 face 必须属于不同 Part。同一 Part 内的面邻
 
 ### 性能
 
-- **空间索引**：AABB 包围盒粗筛 + KD-Tree 精搜，避免 O(N²) 面间接触检查
+- **空间索引**：expanded AABB + AABB Tree/BVH 保守生成候选面对，避免先枚举 O(N²) 面对；后续几何判定负责裁掉误报
 - **几何缓存**：L0 可一次性提取 face 的常用几何属性并缓存，减少后续层的重复 OCP 调用；使用 `__slots__` 减少内存开销
 - **L2 并行化**：基于 per-part 独立性的天然并行度，由 config 控制最大并发数
 

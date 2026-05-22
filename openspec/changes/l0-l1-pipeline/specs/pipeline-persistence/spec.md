@@ -12,7 +12,7 @@
 
 - **WHEN** L0 处理完装配体（例如 19759 个面）
 - **THEN** 输出 JSON 包含：metadata（source_file, pipeline_version, timestamp, num_faces）、parts 数组、faces 数组
-- **AND** faces 数组中每个元素包含 face_uid, part_uid, part_face_index, geom_type, fingerprint
+- **AND** faces 数组中每个元素包含 face_uid, part_uid, global_face_index, part_face_index, geom_type, supported, skip_reason, fingerprint
 
 #### Scenario: 反序列化恢复 L0 数据
 
@@ -28,7 +28,8 @@
 
 - **WHEN** L1 按遍历顺序对应 face_uid
 - **THEN** 首尾面的几何指纹与 L0 记录一致（容差 1e-4）
-- **AND** 构建 face_uid → cq.Face 内存映射用于后续几何查询
+- **AND** 构建覆盖所有拓扑 face 的 face_uid → cq.Face 内存映射用于后续几何查询
+- **AND** L1 面分类、空间索引和接触判定仅使用 supported = true 的 face
 
 #### Scenario: 指纹不匹配回退
 
