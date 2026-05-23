@@ -1,3 +1,7 @@
 .DS_store
 
 examples/test_case/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+outputs/

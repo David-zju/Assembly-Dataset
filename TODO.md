@@ -2,7 +2,7 @@
 
 ## L0 -> L1
 
-未开始
+已完成：已实现 STEP 装配体导入、Part 扁平化、B-rep face_uid 标识、L0 JSON 持久化、BVH 候选生成、Planar/Cylindrical/Tangency 接触检测、L1 输出与 CLI。
 
 ## L1 -> L2
 

@@ -1,0 +1,16 @@
+# 几何容差配置。所有 L1 判定阈值必须从此处读取，避免硬编码。
+geometry:
+  max_angle_deg: 0.05
+  max_distance_mm: 0.005
+  max_axis_angle_deg: 0.05
+  max_radius_ratio: 0.01
+  min_overlap_length_ratio: 0.05
+  search_radius: 0.01
+  overlap_min_ratio: 0.0
+  bbox_overlap_min_ratio: 0.0
+  fingerprint_abs_tol: 0.0001
+
+spatial_index:
+  bvh_leaf_size: 8
+  bvh_max_depth: null
+

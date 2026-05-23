@@ -270,3 +270,37 @@ solids 3
 faces 15
 ```
 **结论**：`simple_l0_l1_assembly.step` 是小型有效装配验证件。`Assembly.load()` 可恢复可靠 Part 边界；`importStep()` 仍只适合作为几何兜底。
+
+### 验证场景 5：Assembly Location 组合与 4×4 变换矩阵提取
+
+**日期**：2026-05-22
+**模型/数据**：`test_case/simple_l0_l1_assembly.step`
+**代码**：
+```python
+import cadquery as cq
+
+assembly = cq.Assembly.load("test_case/simple_l0_l1_assembly.step")
+identity = cq.Location()
+
+print("root", assembly.loc.toTuple())
+for child in assembly.children:
+    composed = identity * child.loc
+    trsf = composed.wrapped.Transformation()
+    matrix = [
+        [trsf.Value(1, 1), trsf.Value(1, 2), trsf.Value(1, 3), trsf.Value(1, 4)],
+        [trsf.Value(2, 1), trsf.Value(2, 2), trsf.Value(2, 3), trsf.Value(2, 4)],
+        [trsf.Value(3, 1), trsf.Value(3, 2), trsf.Value(3, 3), trsf.Value(3, 4)],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+    located_shape = child.obj.located(composed)
+    print(child.name, child.loc.toTuple(), matrix, type(located_shape).__name__)
+```
+**预期行为**：`child.loc` 可与父 Location 相乘得到根坐标系 Location；`shape.located(loc)` 可得到被定位后的 shape；`gp_Trsf.Value(row, col)` 可提取 3×4 变换矩阵。
+**实际结果**：
+```text
+root ((0.0, 0.0, 0.0), (0.0, -0.0, 0.0))
+base_plate ((0.0, 0.0, 0.0), (0.0, -0.0, 0.0)) translation=(0.0, 0.0, 0.0)
+top_block ((-7.0, 0.0, 4.0), (0.0, -0.0, 0.0)) translation=(-7.0, 0.0, 4.0)
+vertical_pin ((8.0, 0.0, 2.0), (0.0, -0.0, 0.0)) translation=(8.0, 0.0, 2.0)
+```
+**结论**：L0 扁平化中可用 `parent_loc * child.loc` 组合装配位姿，用 `shape.located(composed)` 生成根坐标系下的 Part shape，用 `location.wrapped.Transformation().Value(1..3, 1..4)` 提取 4×4 齐次矩阵前三行。`Value()` 索引是 1-based。

@@ -1,0 +1,20 @@
+# 管道行为配置。
+pipeline:
+  enabled_layers:
+    - l0
+    - l1
+  max_workers: 1
+  output_format: json
+  output_dir: outputs
+  pipeline_version: "0.1.0"
+
+l0:
+  allow_import_step_fallback: true
+  require_part_boundary_for_l1: true
+
+l1:
+  enabled_contact_types:
+    - planar
+    - cylindrical
+    - tangency
+
