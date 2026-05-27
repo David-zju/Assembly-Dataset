@@ -304,3 +304,65 @@ top_block ((-7.0, 0.0, 4.0), (0.0, -0.0, 0.0)) translation=(-7.0, 0.0, 4.0)
 vertical_pin ((8.0, 0.0, 2.0), (0.0, -0.0, 0.0)) translation=(8.0, 0.0, 2.0)
 ```
 **结论**：L0 扁平化中可用 `parent_loc * child.loc` 组合装配位姿，用 `shape.located(composed)` 生成根坐标系下的 Part shape，用 `location.wrapped.Transformation().Value(1..3, 1..4)` 提取 4×4 齐次矩阵前三行。`Value()` 索引是 1-based。
+
+### 验证场景 6：大型 STEP 文件 Assembly.load 可恢复装配树但耗时较长
+
+**日期**：2026-05-25
+**模型/数据**：`test_case/装配体3.STEP`（32.4 MB，19759 个 face）
+**代码**：
+```python
+from pathlib import Path
+from time import perf_counter
+import cadquery as cq
+from OCP.TopAbs import TopAbs_FACE
+from OCP.TopExp import TopExp_Explorer
+
+
+def count_faces(shape):
+    exp = TopExp_Explorer(shape.wrapped, TopAbs_FACE)
+    count = 0
+    while exp.More():
+        count += 1
+        exp.Next()
+    return count
+
+
+def collect(node, path="root"):
+    leaves = []
+    for i, child in enumerate(getattr(node, "children", []) or [], start=1):
+        name = getattr(child, "name", "") or ""
+        child_path = f"{path}/{i}:{name}"
+        obj = getattr(child, "obj", None)
+        grand_children = getattr(child, "children", []) or []
+        if obj is not None and not grand_children:
+            leaves.append((child_path, type(obj).__name__, count_faces(obj)))
+        leaves.extend(collect(child, child_path))
+    return leaves
+
+
+start = perf_counter()
+assembly = cq.Assembly.load("test_case/装配体3.STEP")
+elapsed = perf_counter() - start
+leaves = collect(assembly)
+print("elapsed_seconds", round(elapsed, 3))
+print("root_name", assembly.name)
+print("root_children", len(assembly.children))
+print("leaf_count", len(leaves))
+print("face_sum", sum(v for _, _, v in leaves))
+print("first_leaves", leaves[:10])
+```
+**预期行为**：若 `Assembly.load()` 能解析该大型装配体，应恢复装配树、leaf Part 与 face 总数。
+**实际结果**：
+```text
+elapsed_seconds 124.32
+root_name 机器狗
+root_children 11
+leaf_count 298
+face_sum 19759
+first_leaves [
+  ('root/1:canine rear end assembly/1:NAUO276', 'Solid', 281),
+  ('root/1:canine rear end assembly/2:NAUO277', 'Solid', 84),
+  ...
+]
+```
+**结论**：`Assembly.load()` 对 `装配体3.STEP` 可以恢复装配树和 298 个 leaf Part，总 face 数与 `importStep()` 的 19759 face 一致，因此可作为可靠 Part 边界来源候选。但该文件解析耗时约 124 秒，明显慢于 `importStep()` 的几何诊断路径；大模型 E2E 验证应单独记录耗时并避免在频繁单元测试中使用。
