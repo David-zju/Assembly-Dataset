@@ -5,6 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import cadquery as cq
+import math
+from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace
+from OCP.Geom import Geom_CylindricalSurface
+from OCP.gp import gp_Ax3, gp_Dir, gp_Pnt
 
 from src.common.data_models import FaceMetadata
 from src.common.fingerprint import compute_face_fingerprint
@@ -42,6 +46,32 @@ def _meta(face_uid: str, part_uid: str, geom_type: str, face: cq.Face) -> FaceMe
     )
 
 
+def _partial_cylinder_face(
+    start_deg: float,
+    end_deg: float,
+    *,
+    vmin: float = -5.0,
+    vmax: float = 5.0,
+    axis_dir: tuple[float, float, float] = (0.0, 0.0, 1.0),
+    reversed_orientation: bool = False,
+) -> cq.Face:
+    """构造测试用局部圆柱 face。"""
+    surf = Geom_CylindricalSurface(gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(*axis_dir)), 2.5)
+    face = cq.Face(
+        BRepBuilderAPI_MakeFace(
+            surf,
+            math.radians(start_deg),
+            math.radians(end_deg),
+            vmin,
+            vmax,
+            1e-7,
+        ).Face(),
+    )
+    if reversed_orientation:
+        return cq.Face(face.wrapped.Reversed())
+    return face
+
+
 def test_planar_contact_detected_and_same_part_skipped() -> None:
     """验证平面接触通过，同 Part 直接跳过。"""
     uids = UIDManager()
@@ -68,9 +98,56 @@ def test_cylindrical_contact_accepts_hole_shaft_and_rejects_mismatch() -> None:
     hole_meta = _meta("f-0002-00001", "p-0002", "CYLINDER", hole_face)
     small_meta = _meta("f-0003-00001", "p-0003", "CYLINDER", small_shaft_face)
 
-    assert detect_cylindrical_contact(shaft_meta, shaft_face, hole_meta, hole_face, tol) is not None
+    detection = detect_cylindrical_contact(shaft_meta, shaft_face, hole_meta, hole_face, tol)
+    assert detection is not None
+    assert detection.parameters["axial_overlap_method"] == "uv_sampled"
+    assert detection.parameters["circumferential_overlap_method"] == "uv_sampled_common_frame"
     assert detect_cylindrical_contact(shaft_meta, shaft_face, shaft_meta, shaft_face, tol) is None
     assert detect_cylindrical_contact(small_meta, small_shaft_face, hole_meta, hole_face, tol) is None
+
+
+def test_cylindrical_contact_rejects_axial_mismatch() -> None:
+    """验证共轴同半径但轴向不重叠时拒绝。"""
+    shaft = _partial_cylinder_face(0, 360, vmin=-5, vmax=-1)
+    hole = _partial_cylinder_face(0, 360, vmin=1, vmax=5, reversed_orientation=True)
+    tol = load_tolerances()
+
+    shaft_meta = _meta("f-0001-00001", "p-0001", "CYLINDER", shaft)
+    hole_meta = _meta("f-0002-00001", "p-0002", "CYLINDER", hole)
+
+    assert detect_cylindrical_contact(shaft_meta, shaft, hole_meta, hole, tol) is None
+
+
+def test_cylindrical_contact_detects_and_rejects_partial_circumference() -> None:
+    """验证局部圆柱片周向重叠通过、周向错开拒绝。"""
+    shaft = _partial_cylinder_face(350, 370, vmin=-5, vmax=5)
+    matching_hole = _partial_cylinder_face(355, 365, vmin=-4, vmax=4, reversed_orientation=True)
+    shifted_hole = _partial_cylinder_face(90, 110, vmin=-4, vmax=4, reversed_orientation=True)
+    tol = load_tolerances()
+
+    shaft_meta = _meta("f-0001-00001", "p-0001", "CYLINDER", shaft)
+    matching_meta = _meta("f-0002-00001", "p-0002", "CYLINDER", matching_hole)
+    shifted_meta = _meta("f-0003-00001", "p-0003", "CYLINDER", shifted_hole)
+
+    detection = detect_cylindrical_contact(shaft_meta, shaft, matching_meta, matching_hole, tol)
+    assert detection is not None
+    assert detection.parameters["needs_exact_overlap"] is True
+    assert detection.parameters["circumferential_overlap_angle_deg"] > 1.0
+    assert detect_cylindrical_contact(shaft_meta, shaft, shifted_meta, shifted_hole, tol) is None
+
+
+def test_cylindrical_contact_handles_non_global_axis() -> None:
+    """验证非全局 Z 轴圆柱可正确计算轴向与周向 overlap。"""
+    shaft = _partial_cylinder_face(0, 120, vmin=-5, vmax=5, axis_dir=(1.0, 0.0, 0.0))
+    hole = _partial_cylinder_face(30, 90, vmin=-4, vmax=4, axis_dir=(1.0, 0.0, 0.0), reversed_orientation=True)
+    tol = load_tolerances()
+
+    shaft_meta = _meta("f-0001-00001", "p-0001", "CYLINDER", shaft)
+    hole_meta = _meta("f-0002-00001", "p-0002", "CYLINDER", hole)
+
+    detection = detect_cylindrical_contact(shaft_meta, shaft, hole_meta, hole, tol)
+    assert detection is not None
+    assert detection.parameters["axial_overlap_method"] == "uv_sampled"
 
 
 def test_tangency_contact_detected_and_non_parallel_rejected() -> None:

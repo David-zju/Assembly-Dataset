@@ -13,6 +13,7 @@ from pathlib import Path
 from tests.integration import test_l0_l1_pipeline as integration_tests
 from tests.test_common import test_common_modules as common_tests
 from tests.test_l0 import test_l0_pipeline as l0_tests
+from tests.test_l1 import test_cylindrical_overlap as cylindrical_overlap_tests
 from tests.test_l1 import test_l1_detection as l1_tests
 
 
@@ -32,7 +33,14 @@ class L0L1SmokeTest(unittest.TestCase):
             l0_tests.test_encoding_recovery_fallback_and_ascii_name,
             l0_tests.test_unsupported_face_metadata_is_serializable,
             l1_tests.test_planar_contact_detected_and_same_part_skipped,
+            cylindrical_overlap_tests.test_cylinder_frame_projection_global_and_x_axis,
+            cylindrical_overlap_tests.test_extract_domain_full_circle_and_partial_cross_zero,
+            cylindrical_overlap_tests.test_angular_coverage_and_overlap_variants,
+            cylindrical_overlap_tests.test_interval_overlap_uses_shorter_interval_denominator,
             l1_tests.test_cylindrical_contact_accepts_hole_shaft_and_rejects_mismatch,
+            l1_tests.test_cylindrical_contact_rejects_axial_mismatch,
+            l1_tests.test_cylindrical_contact_detects_and_rejects_partial_circumference,
+            l1_tests.test_cylindrical_contact_handles_non_global_axis,
             l1_tests.test_tangency_contact_detected_and_non_parallel_rejected,
             l1_tests.test_l1_output_contact_uid_is_continuous,
         ]

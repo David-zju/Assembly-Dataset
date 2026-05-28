@@ -21,6 +21,10 @@ class Tolerances:
         max_axis_angle_deg: 圆柱轴线夹角容差，单位度。
         max_radius_ratio: 圆柱半径相对差阈值。
         min_overlap_length_ratio: 圆柱轴向重叠比例阈值。
+        min_circumferential_overlap_ratio: 圆柱周向重叠比例阈值。
+        min_circumferential_overlap_deg: 圆柱周向重叠最小角度，单位度。
+        full_circle_angle_tol_deg: 判断完整 360° 圆柱面的角度容差，单位度。
+        cylinder_domain_sample_count: 圆柱 UV domain 边界采样数量。
         search_radius: AABB 膨胀半径，单位与模型一致。
         overlap_min_ratio: 面重叠比例阈值。
         bbox_overlap_min_ratio: bbox 近似重叠比例阈值。
@@ -34,6 +38,10 @@ class Tolerances:
     max_axis_angle_deg: float
     max_radius_ratio: float
     min_overlap_length_ratio: float
+    min_circumferential_overlap_ratio: float
+    min_circumferential_overlap_deg: float
+    full_circle_angle_tol_deg: float
+    cylinder_domain_sample_count: int
     search_radius: float
     overlap_min_ratio: float
     bbox_overlap_min_ratio: float
@@ -61,6 +69,10 @@ def load_tolerances(config_path: str | Path | None = None) -> Tolerances:
         max_axis_angle_deg=float(geometry.get("max_axis_angle_deg", 0.05)),
         max_radius_ratio=float(geometry.get("max_radius_ratio", 0.01)),
         min_overlap_length_ratio=float(geometry.get("min_overlap_length_ratio", 0.05)),
+        min_circumferential_overlap_ratio=float(geometry.get("min_circumferential_overlap_ratio", 0.01)),
+        min_circumferential_overlap_deg=float(geometry.get("min_circumferential_overlap_deg", 1.0)),
+        full_circle_angle_tol_deg=float(geometry.get("full_circle_angle_tol_deg", 0.1)),
+        cylinder_domain_sample_count=int(geometry.get("cylinder_domain_sample_count", 16)),
         search_radius=float(geometry.get("search_radius", 0.01)),
         overlap_min_ratio=float(geometry.get("overlap_min_ratio", 0.0)),
         bbox_overlap_min_ratio=float(geometry.get("bbox_overlap_min_ratio", 0.0)),
@@ -68,4 +80,3 @@ def load_tolerances(config_path: str | Path | None = None) -> Tolerances:
         bvh_leaf_size=int(spatial.get("bvh_leaf_size", 8)),
         bvh_max_depth=spatial.get("bvh_max_depth"),
     )
-

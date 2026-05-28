@@ -68,6 +68,21 @@ dot_val = n_dir.toTuple()[0]*to_surf[0] + n_dir.toTuple()[1]*to_surf[1] + n_dir.
 - `U = 0` 对应角度原点（随模型而异）
 - `V` 方向沿轴线，但正负方向取决于具体定义
 
+### 构造受限 U/V 圆柱面的 API 注意事项
+
+在 CadQuery 2.7.0 / OCP 环境中，`Geom_CylindricalSurface` 的构造函数接受 `gp_Ax3` 或 `gp_Cylinder`，不接受 `gp_Ax2`：
+
+```python
+from OCP.gp import gp_Ax3, gp_Pnt, gp_Dir
+from OCP.Geom import Geom_CylindricalSurface
+from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace
+
+surf = Geom_CylindricalSurface(gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1)), 2.5)
+face = cq.Face(BRepBuilderAPI_MakeFace(surf, umin, umax, vmin, vmax, 1e-7).Face())
+```
+
+可用 `cq.Face(face.wrapped.Reversed())` 反转 face orientation。反转后 `face.normalAt(u, v)` 的材料外法向会反向，内外圆柱判断中的点积符号会从正变负，可用于构造局部 hole face 测试样本。
+
 ## 已验证场景
 
 ### 验证场景 1：外圆柱（extrude 创建的圆柱）
@@ -131,3 +146,69 @@ for face in block.faces().vals():
 **预期行为**：Radius=2.5、判断为内圆柱（hole）
 **实际结果**：完全符合预期
 **结论**：内外判断对 hole 也可靠
+
+### 验证场景 3：局部圆柱片与跨 0/2π 的 U 范围
+
+**日期**：2026-05-28
+**模型/数据**：使用 `Geom_CylindricalSurface(gp_Ax3(...), radius)` + `BRepBuilderAPI_MakeFace` 构造 U 范围为 350° 到 370°、V 范围为 -5 到 5 的局部圆柱片
+**代码**：
+```python
+import math
+import cadquery as cq
+from OCP.BRep import BRep_Tool
+from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace
+from OCP.gp import gp_Ax3, gp_Pnt, gp_Dir
+from OCP.Geom import Geom_CylindricalSurface
+
+surf = Geom_CylindricalSurface(gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1)), 2.5)
+face = cq.Face(BRepBuilderAPI_MakeFace(
+    surf,
+    math.radians(350),
+    math.radians(370),
+    -5,
+    5,
+    1e-7,
+).Face())
+
+umin, umax, vmin, vmax = face.uvBounds()
+u_mid, v_mid = (umin + umax) / 2, (vmin + vmax) / 2
+pt = face.positionAt(u_mid, v_mid).toTuple()
+normal = face.normalAt(u_mid, v_mid)[0].toTuple()
+axis = BRep_Tool.Surface_s(face.wrapped).Axis()
+```
+**实际结果**：
+- `uvBounds()` 返回 `U=[6.108652, 6.457718]`，跨度约 `0.349066 rad`（20°）
+- `V=[-5.0, 5.0]`
+- 中点约为 `(2.5, 0.0, 0.0)`
+- `normalAt()` 中点法向约为 `(1.0, 0.0, 0.0)`
+- 角度范围可以超过 `2π`，因此后续算法不能简单把 U clamp 到 `[0, 2π]` 后再取 min/max
+**结论**：局部圆柱片可通过受限 U/V 构造；跨 0/2π 的短弧段需要用公共 frame 中的角度采样和最大空隙补集归一化。
+
+### 验证场景 4：反转局部圆柱片 orientation 构造局部 hole face
+
+**日期**：2026-05-28
+**模型/数据**：验证场景 3 的局部圆柱片，调用 `face.wrapped.Reversed()`
+**代码**：
+```python
+reversed_face = cq.Face(face.wrapped.Reversed())
+u_mid, v_mid = (umin + umax) / 2, (vmin + vmax) / 2
+normal = reversed_face.normalAt(u_mid, v_mid)[0].toTuple()
+pt = reversed_face.positionAt(u_mid, v_mid).toTuple()
+```
+**实际结果**：
+- 反转前中点法向约为 `(1.0, 0.0, 0.0)`，内外判断点积 `dot=2.5`，为 shaft
+- 反转后中点法向约为 `(-1.0, 0.0, 0.0)`，内外判断点积 `dot=-2.5`，为 hole
+- `uvBounds()` 保持不变
+**结论**：反转 orientation 可稳定构造局部 hole face 测试样本，适合覆盖局部圆柱片周向 overlap / mismatch 场景。
+
+### 验证场景 5：非全局 Z 轴圆柱
+
+**日期**：2026-05-28
+**模型/数据**：使用 `gp_Ax3(gp_Pnt(0,0,0), gp_Dir(1,0,0))` 构造轴线沿 X 轴、U 范围 0 到 90°、V 范围 -4 到 6 的局部圆柱片
+**实际结果**：
+- `surf.Axis().Direction()` 返回 `(1.0, 0.0, 0.0)`
+- `uvBounds()` 返回 `U=[0, 1.570796]`，`V=[-4, 6]`
+- `positionAt(0, -4)` 约为 `(-4, 0, 2.5)`
+- `positionAt(π/2, -4)` 约为 `(-4, -2.5, 0)`
+- 中点法向约为 `(0, -0.707107, 0.707107)`
+**结论**：V 参数沿圆柱轴线方向变化，但轴线可为任意方向；L1 不能依赖全局 Z 轴，应基于 `surf.Axis()` 构造公共圆柱坐标系。

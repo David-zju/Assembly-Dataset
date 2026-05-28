@@ -5,6 +5,10 @@ geometry:
   max_axis_angle_deg: 0.05
   max_radius_ratio: 0.01
   min_overlap_length_ratio: 0.05
+  min_circumferential_overlap_ratio: 0.01
+  min_circumferential_overlap_deg: 1.0
+  full_circle_angle_tol_deg: 0.1
+  cylinder_domain_sample_count: 16
   search_radius: 0.01
   overlap_min_ratio: 0.0
   bbox_overlap_min_ratio: 0.0
@@ -13,4 +17,3 @@ geometry:
 spatial_index:
   bvh_leaf_size: 8
   bvh_max_depth: null
-
