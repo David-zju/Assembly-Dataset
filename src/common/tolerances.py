@@ -25,6 +25,12 @@ class Tolerances:
         min_circumferential_overlap_deg: 圆柱周向重叠最小角度，单位度。
         full_circle_angle_tol_deg: 判断完整 360° 圆柱面的角度容差，单位度。
         cylinder_domain_sample_count: 圆柱 UV domain 边界采样数量。
+        min_planar_overlap_area_mm2: 平面 overlap 最小面积阈值。
+        min_planar_overlap_ratio: 平面 overlap 最小比例阈值。
+        min_tangency_overlap_length_mm: Tangency 有限切线最小重叠长度。
+        min_tangency_overlap_ratio: Tangency 有限切线最小重叠比例。
+        plane_edge_sample_count: 平面曲线边界离散化采样数量。
+        max_plane_polygon_vertices: 平面多边形最大顶点数，超过则降级。
         search_radius: AABB 膨胀半径，单位与模型一致。
         overlap_min_ratio: 面重叠比例阈值。
         bbox_overlap_min_ratio: bbox 近似重叠比例阈值。
@@ -42,6 +48,12 @@ class Tolerances:
     min_circumferential_overlap_deg: float
     full_circle_angle_tol_deg: float
     cylinder_domain_sample_count: int
+    min_planar_overlap_area_mm2: float
+    min_planar_overlap_ratio: float
+    min_tangency_overlap_length_mm: float
+    min_tangency_overlap_ratio: float
+    plane_edge_sample_count: int
+    max_plane_polygon_vertices: int
     search_radius: float
     overlap_min_ratio: float
     bbox_overlap_min_ratio: float
@@ -73,6 +85,12 @@ def load_tolerances(config_path: str | Path | None = None) -> Tolerances:
         min_circumferential_overlap_deg=float(geometry.get("min_circumferential_overlap_deg", 1.0)),
         full_circle_angle_tol_deg=float(geometry.get("full_circle_angle_tol_deg", 0.1)),
         cylinder_domain_sample_count=int(geometry.get("cylinder_domain_sample_count", 16)),
+        min_planar_overlap_area_mm2=float(geometry.get("min_planar_overlap_area_mm2", 1e-6)),
+        min_planar_overlap_ratio=float(geometry.get("min_planar_overlap_ratio", 0.0)),
+        min_tangency_overlap_length_mm=float(geometry.get("min_tangency_overlap_length_mm", 1e-6)),
+        min_tangency_overlap_ratio=float(geometry.get("min_tangency_overlap_ratio", 0.0)),
+        plane_edge_sample_count=int(geometry.get("plane_edge_sample_count", 16)),
+        max_plane_polygon_vertices=int(geometry.get("max_plane_polygon_vertices", 256)),
         search_radius=float(geometry.get("search_radius", 0.01)),
         overlap_min_ratio=float(geometry.get("overlap_min_ratio", 0.0)),
         bbox_overlap_min_ratio=float(geometry.get("bbox_overlap_min_ratio", 0.0)),

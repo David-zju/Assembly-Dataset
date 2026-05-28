@@ -12,6 +12,7 @@ from src.common.geometry import point_plane_distance
 from src.common.tolerances import Tolerances
 
 from .geometry_extractors import angle_between_vectors_deg, plane_geometry, projected_bbox_overlap_ratio
+from .planar_overlap import build_plane_frame, compute_planar_overlap, extract_plane_trim_domain
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,18 +53,48 @@ def detect_planar_contact(
     if distance > tolerances.max_distance_mm:
         return None
 
-    overlap_ratio = projected_bbox_overlap_ratio(face_a, face_b, geom_a.normal)
-    if overlap_ratio <= tolerances.bbox_overlap_min_ratio:
+    frame = build_plane_frame(face_a)
+    domain_a = extract_plane_trim_domain(face_a, frame, tolerances)
+    domain_b = extract_plane_trim_domain(face_b, frame, tolerances)
+    overlap = compute_planar_overlap(domain_a, domain_b, tolerances)
+    if overlap.supported:
+        if (
+            overlap.overlap_area <= tolerances.min_planar_overlap_area_mm2
+            or overlap.overlap_ratio <= tolerances.min_planar_overlap_ratio
+        ):
+            return None
+        return ContactDetection(
+            contact_type=ContactType.PLANAR,
+            confidence=0.95 if not overlap.needs_exact_overlap else 0.9,
+            parameters={
+                "normal_angle_deg": normal_angle_deg,
+                "plane_distance": distance,
+                "overlap_area": overlap.overlap_area,
+                "overlap_ratio": overlap.overlap_ratio,
+                "overlap_method": overlap.method,
+                "plane_domain_supported_a": domain_a.is_supported,
+                "plane_domain_supported_b": domain_b.is_supported,
+                "needs_exact_overlap": overlap.needs_exact_overlap,
+            },
+        )
+
+    bbox_overlap_ratio = projected_bbox_overlap_ratio(face_a, face_b, geom_a.normal)
+    if bbox_overlap_ratio <= tolerances.bbox_overlap_min_ratio:
         return None
 
     return ContactDetection(
         contact_type=ContactType.PLANAR,
-        confidence=0.9,
+        confidence=0.65,
         parameters={
             "normal_angle_deg": normal_angle_deg,
             "plane_distance": distance,
-            "overlap_ratio": overlap_ratio,
-            "overlap_method": "bbox_approx",
+            "overlap_area": 0.0,
+            "overlap_ratio": bbox_overlap_ratio,
+            "overlap_method": "bbox_fallback",
+            "plane_domain_supported_a": domain_a.is_supported,
+            "plane_domain_supported_b": domain_b.is_supported,
+            "plane_domain_error_a": domain_a.unsupported_reason,
+            "plane_domain_error_b": domain_b.unsupported_reason,
             "needs_exact_overlap": True,
         },
     )

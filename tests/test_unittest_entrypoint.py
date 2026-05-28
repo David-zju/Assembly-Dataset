@@ -15,6 +15,7 @@ from tests.test_common import test_common_modules as common_tests
 from tests.test_l0 import test_l0_pipeline as l0_tests
 from tests.test_l1 import test_cylindrical_overlap as cylindrical_overlap_tests
 from tests.test_l1 import test_l1_detection as l1_tests
+from tests.test_l1 import test_planar_overlap as planar_overlap_tests
 
 
 class L0L1SmokeTest(unittest.TestCase):
@@ -33,6 +34,10 @@ class L0L1SmokeTest(unittest.TestCase):
             l0_tests.test_encoding_recovery_fallback_and_ascii_name,
             l0_tests.test_unsupported_face_metadata_is_serializable,
             l1_tests.test_planar_contact_detected_and_same_part_skipped,
+            planar_overlap_tests.test_planar_overlap_full_partial_and_no_overlap,
+            planar_overlap_tests.test_planar_overlap_sampled_arc_boundary_supported,
+            planar_overlap_tests.test_line_polygon_intervals_and_1d_overlap,
+            l1_tests.test_planar_contact_rejects_bbox_false_positive,
             cylindrical_overlap_tests.test_cylinder_frame_projection_global_and_x_axis,
             cylindrical_overlap_tests.test_extract_domain_full_circle_and_partial_cross_zero,
             cylindrical_overlap_tests.test_angular_coverage_and_overlap_variants,
@@ -42,6 +47,10 @@ class L0L1SmokeTest(unittest.TestCase):
             l1_tests.test_cylindrical_contact_detects_and_rejects_partial_circumference,
             l1_tests.test_cylindrical_contact_handles_non_global_axis,
             l1_tests.test_tangency_contact_detected_and_non_parallel_rejected,
+            l1_tests.test_tangency_rejects_plane_too_small,
+            l1_tests.test_tangency_rejects_cylinder_axial_and_angular_mismatch,
+            l1_tests.test_tangency_handles_non_global_axis,
+            l1_tests.test_tangency_complex_plane_uses_fallback,
             l1_tests.test_l1_output_contact_uid_is_continuous,
         ]
         for function in functions:

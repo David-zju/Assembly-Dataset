@@ -82,9 +82,21 @@ def test_planar_contact_detected_and_same_part_skipped() -> None:
     tol = load_tolerances()
     detection = detect_planar_contact(meta_a, l0.face_map[meta_a.face_uid], meta_b, l0.face_map[meta_b.face_uid], tol)
     assert detection is not None
-    assert detection.confidence < 1.0
+    assert detection.parameters["overlap_method"].startswith("plane_polygon")
     same_part = detect_planar_contact(meta_a, l0.face_map[meta_a.face_uid], meta_a, l0.face_map[meta_a.face_uid], tol)
     assert same_part is None
+
+
+def test_planar_contact_rejects_bbox_false_positive() -> None:
+    """验证 bbox 相交但有限多边形无面积重叠时拒绝。"""
+    face_a = cq.Workplane("XY").box(10, 10, 1).faces(">Z").val()
+    face_b = cq.Workplane("XY").box(10, 10, 1).translate((10, 0, 1)).faces("<Z").val()
+    tol = load_tolerances()
+
+    meta_a = _meta("f-0001-00001", "p-0001", "PLANE", face_a)
+    meta_b = _meta("f-0002-00001", "p-0002", "PLANE", face_b)
+
+    assert detect_planar_contact(meta_a, face_a, meta_b, face_b, tol) is None
 
 
 def test_cylindrical_contact_accepts_hole_shaft_and_rejects_mismatch() -> None:
@@ -161,8 +173,74 @@ def test_tangency_contact_detected_and_non_parallel_rejected() -> None:
     plane_meta = _meta("f-0002-00001", "p-0002", "PLANE", tangent_plane)
     other_plane_meta = _meta("f-0003-00001", "p-0003", "PLANE", non_parallel_plane)
 
-    assert detect_tangency_contact(cyl_meta, cylinder_face, plane_meta, tangent_plane, tol) is not None
+    detection = detect_tangency_contact(cyl_meta, cylinder_face, plane_meta, tangent_plane, tol)
+    assert detection is not None
+    assert detection.parameters["overlap_method"] == "trimmed_domain_line_overlap"
     assert detect_tangency_contact(cyl_meta, cylinder_face, other_plane_meta, non_parallel_plane, tol) is None
+
+
+def test_tangency_rejects_plane_too_small() -> None:
+    """验证理论切线落在平面有限边界外时拒绝。"""
+    cylinder_face = _first_face(cq.Workplane("YZ").circle(2.5).extrude(10), "CYLINDER")
+    tiny_plane = cq.Workplane("XY").box(1, 0.2, 1).translate((12, 2.4, 0)).faces(">Y").val()
+    tol = load_tolerances()
+
+    cyl_meta = _meta("f-0001-00001", "p-0001", "CYLINDER", cylinder_face)
+    plane_meta = _meta("f-0002-00001", "p-0002", "PLANE", tiny_plane)
+
+    assert detect_tangency_contact(cyl_meta, cylinder_face, plane_meta, tiny_plane, tol) is None
+
+
+def test_tangency_rejects_cylinder_axial_and_angular_mismatch() -> None:
+    """验证圆柱轴向或周向有限范围不覆盖切线时拒绝。"""
+    tol = load_tolerances()
+    plane = cq.Workplane("XY").box(12, 0.2, 12).translate((0, -2.4, 0)).faces("<Y").val()
+    shaft = _partial_cylinder_face(0, 360, vmin=-5, vmax=5)
+    shifted_shaft = _partial_cylinder_face(0, 360, vmin=20, vmax=25)
+    angular_mismatch = _partial_cylinder_face(90, 120, vmin=-5, vmax=5)
+
+    plane_meta = _meta("f-0001-00001", "p-0001", "PLANE", plane)
+    shaft_meta = _meta("f-0002-00001", "p-0002", "CYLINDER", shaft)
+    shifted_meta = _meta("f-0003-00001", "p-0003", "CYLINDER", shifted_shaft)
+    mismatch_meta = _meta("f-0004-00001", "p-0004", "CYLINDER", angular_mismatch)
+
+    assert detect_tangency_contact(shaft_meta, shaft, plane_meta, plane, tol) is not None
+    assert detect_tangency_contact(shifted_meta, shifted_shaft, plane_meta, plane, tol) is None
+    assert detect_tangency_contact(mismatch_meta, angular_mismatch, plane_meta, plane, tol) is None
+
+
+def test_tangency_handles_non_global_axis() -> None:
+    """验证非全局方向的圆柱-平面相切。"""
+    cylinder_face = _partial_cylinder_face(0, 360, vmin=-5, vmax=5, axis_dir=(1.0, 0.0, 0.0))
+    plane = cq.Workplane("XY").box(12, 0.2, 12).translate((0, -2.4, 0)).faces("<Y").val()
+    tol = load_tolerances()
+
+    cyl_meta = _meta("f-0001-00001", "p-0001", "CYLINDER", cylinder_face)
+    plane_meta = _meta("f-0002-00001", "p-0002", "PLANE", plane)
+
+    detection = detect_tangency_contact(cyl_meta, cylinder_face, plane_meta, plane, tol)
+    assert detection is not None
+    assert detection.parameters["tangent_overlap_length"] > 0.0
+
+
+def test_tangency_complex_plane_uses_fallback() -> None:
+    """验证复杂平面 domain 降级为低置信度诊断。"""
+    cylinder_face = _first_face(cq.Workplane("YZ").circle(2.5).extrude(10), "CYLINDER")
+    complex_shape = cq.Workplane("XY").box(12, 0.2, 12).translate((5, 2.4, 0)).faces(">Y").workplane().hole(2, 0.2)
+    complex_plane = max(
+        (face for face in complex_shape.faces().vals() if face.geomType() == "PLANE" and face.Center().toTuple()[1] > 2.4),
+        key=lambda face: face.Area(),
+    )
+    tol = load_tolerances()
+
+    cyl_meta = _meta("f-0001-00001", "p-0001", "CYLINDER", cylinder_face)
+    plane_meta = _meta("f-0002-00001", "p-0002", "PLANE", complex_plane)
+
+    detection = detect_tangency_contact(cyl_meta, cylinder_face, plane_meta, complex_plane, tol)
+    assert detection is not None
+    assert detection.parameters["overlap_method"] == "bbox_fallback"
+    assert detection.parameters["needs_exact_overlap"] is True
+    assert detection.confidence < 0.9
 
 
 def test_l1_output_contact_uid_is_continuous() -> None:

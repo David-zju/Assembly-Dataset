@@ -9,6 +9,12 @@ geometry:
   min_circumferential_overlap_deg: 1.0
   full_circle_angle_tol_deg: 0.1
   cylinder_domain_sample_count: 16
+  min_planar_overlap_area_mm2: 0.000001
+  min_planar_overlap_ratio: 0.0
+  min_tangency_overlap_length_mm: 0.000001
+  min_tangency_overlap_ratio: 0.0
+  plane_edge_sample_count: 16
+  max_plane_polygon_vertices: 256
   search_radius: 0.01
   overlap_min_ratio: 0.0
   bbox_overlap_min_ratio: 0.0

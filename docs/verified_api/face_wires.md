@@ -166,3 +166,37 @@ for v in imported.vals():
 **预期行为**：能从真实 STEP 面提取 wire 和 edges
 **实际结果**：wire.Closed()=True，7 条边（LINE×4 + BSPLINE×3），识别为复杂形状
 **结论**：必须使用 TopExp_Explorer 遍历 wires/edges；wire.Closed() 在所有场景下可靠
+
+### 验证场景 4：平面 face 的 LINE/CIRCLE edge 端点和采样
+
+**日期**：2026-05-28
+**模型/数据**：
+- `cq.Workplane("XY").box(10, 20, 2).faces(">Z").val()` — 矩形平面 face
+- `cq.Workplane("XY").box(20,20,2).edges("|Z").fillet(2).faces(">Z").val()` — 含圆弧边界的平面 face
+
+**代码**：
+```python
+from OCP.TopExp import TopExp_Explorer
+from OCP.TopAbs import TopAbs_WIRE, TopAbs_EDGE
+
+exp_w = TopExp_Explorer(face.wrapped, TopAbs_WIRE)
+wire = cq.Wire(exp_w.Current())
+print(wire.Closed())  # True
+
+exp_e = TopExp_Explorer(exp_w.Current(), TopAbs_EDGE)
+while exp_e.More():
+    edge = cq.Edge(exp_e.Current())
+    print(edge.geomType(), edge.Length())
+    print(edge.startPoint().toTuple())
+    print(edge.endPoint().toTuple())
+    print(edge.positionAt(0.5).toTuple())
+    exp_e.Next()
+```
+
+**实际结果**：
+- 矩形平面 face 提取到 4 条 `LINE` edge，`startPoint()` / `endPoint()` 均返回正确顶点。
+- 圆角平面 face 提取到 `LINE` 和 `CIRCLE` edge，`CIRCLE.positionAt(0.5)` 返回圆弧中点。
+- `edge.positionAt(t)` 可用 `t ∈ [0, 1]` 对 LINE/CIRCLE edge 做归一化采样。
+- `TopExp_Explorer` 能遍历 wire 内 edges，但 edge 自身 orientation 可能与 ring 连接方向相反；直接按遍历顺序拼接 `startPoint/endPoint` 可能得到退化 ring。
+
+**结论**：L1 平面边界离散化可基于 `TopExp_Explorer` + `edge.startPoint()` / `edge.endPoint()` / `edge.positionAt(t)` 实现。若需要严格按 wire 方向重建 ring，应使用更专门的 wire explorer 或做端点连接排序；当前 L1 Level 2 实现对凸边界采用“收集边界采样点后按 centroid 极角排序”的策略。初始实现应支持 `LINE` 主路径，并可对 `CIRCLE` edge 做采样近似；`BSPLINE` / `ELLIPSE` / 非凸边界等仍标记为复杂边界。

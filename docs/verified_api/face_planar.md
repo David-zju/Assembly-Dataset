@@ -82,3 +82,14 @@ face 4: loc=(-5,-5,-5), normal=(0,0,1)    # 底面
 face 5: loc=(-5,-5,5), normal=(0,0,1)     # 顶面
 ```
 **结论**：Position().Location() 的参考点对于平行平面可能相同（都取坐标系原点在参数域中的对应点）。Direction() 返回几何方向（非材料外法向）。
+
+### 验证场景 2：平面局部 frame 应以材料外法向和 face center 为准
+
+**日期**：2026-05-28
+**模型/数据**：全局 XY/YZ/XZ 平面 face 与斜向 box face
+**验证内容**：
+- `BRep_Tool.Surface_s(face.wrapped).Pln().Position().Direction()` 仍表示几何参数方向，不保证等于材料外法向。
+- `face.normalAt(u_mid, v_mid)[0]` 返回材料外法向，适合作为接触判定语义方向。
+- `face.Center().toTuple()` 可作为局部投影 frame 的 origin，数值比直接使用 `pln.Position().Location()` 更贴近当前 trimmed face。
+
+**结论**：L1 `PlaneFrame` 构造应使用 `face.normalAt()` 的材料外法向作为 normal，并优先使用 face center 作为 origin；`gp_Pln` 主要用于共面距离计算和 API 兜底，不应直接把 `pln.Position().Direction()` 当成接触法向。

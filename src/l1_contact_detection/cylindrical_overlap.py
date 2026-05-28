@@ -290,3 +290,24 @@ def angular_overlap_passes(overlap: IntervalOverlap, tolerances: Tolerances) -> 
     """判断周向 overlap 是否同时满足角度和比例阈值。"""
     min_angle = math.radians(float(tolerances.min_circumferential_overlap_deg))
     return overlap.length >= min_angle and overlap.ratio >= tolerances.min_circumferential_overlap_ratio
+
+
+def cylinder_domain_contains_angle(domain: CylinderTrimDomain, angle: float, *, tol: float = 1e-9) -> bool:
+    """判断 fixed angle 是否落入圆柱有限域的周向覆盖内。
+
+    Args:
+        domain: 圆柱有限域。
+        angle: 公共圆柱坐标系下的角度，单位弧度。
+        tol: 角度边界容差，单位弧度。
+    """
+    if domain.is_full_circle:
+        return True
+    normalized = _normalize_angle(angle)
+    for start, end in domain.angular_intervals:
+        if start - tol <= normalized <= end + tol:
+            return True
+        if abs(end - TAU) <= tol and normalized <= tol:
+            return True
+        if start <= tol and abs(normalized - TAU) <= tol:
+            return True
+    return False
