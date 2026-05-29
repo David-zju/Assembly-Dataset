@@ -9,6 +9,10 @@ from OCP.BRep import BRep_Tool
 surf = BRep_Tool.Surface_s(face.wrapped)  # Geom_CylindricalSurface
 ```
 
+真实 STEP 中，`Surface_s(face.wrapped)` 也可能返回 `Geom_RectangularTrimmedSurface`。
+此时需要先调用 `surf.BasisSurface()` 取得底层 `Geom_CylindricalSurface`，再调用
+`Axis()` / `Radius()`。
+
 ### `surf.Radius()`
 - **返回值**：`float` — 圆柱面的半径
 
@@ -62,6 +66,20 @@ dot_val = n_dir.toTuple()[0]*to_surf[0] + n_dir.toTuple()[1]*to_surf[1] + n_dir.
 ### 轴线上的参考点
 
 `gp_Ax1.Location()` 返回的是轴线坐标系的原点（通常是轴线上的某参考点），不一定是面上最近的点。
+
+### STEP trimmed surface wrapper
+
+部分 STEP 文件会把圆柱底层曲面包在 `Geom_RectangularTrimmedSurface` 中。
+这种 wrapper 本身没有 `Axis()` / `Radius()`，直接调用会抛出 `AttributeError`。
+应先判断是否存在 `BasisSurface()` 并递归解包：
+
+```python
+surf = BRep_Tool.Surface_s(face.wrapped)
+while hasattr(surf, "BasisSurface"):
+    surf = surf.BasisSurface()
+axis = surf.Axis()
+radius = surf.Radius()
+```
 
 ### UV 参数含义
 
@@ -212,3 +230,31 @@ pt = reversed_face.positionAt(u_mid, v_mid).toTuple()
 - `positionAt(π/2, -4)` 约为 `(-4, -2.5, 0)`
 - 中点法向约为 `(0, -0.707107, 0.707107)`
 **结论**：V 参数沿圆柱轴线方向变化，但轴线可为任意方向；L1 不能依赖全局 Z 轴，应基于 `surf.Axis()` 构造公共圆柱坐标系。
+
+### 验证场景 6：Geom_RectangularTrimmedSurface 包裹圆柱
+
+**日期**：2026-05-29
+**模型/数据**：使用 `Geom_RectangularTrimmedSurface(Geom_CylindricalSurface(...), u1, u2, v1, v2)` 构造被 wrapper 包裹的圆柱面。
+**代码**：
+```python
+import cadquery as cq
+from OCP.BRep import BRep_Tool
+from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace
+from OCP.Geom import Geom_CylindricalSurface, Geom_RectangularTrimmedSurface
+from OCP.gp import gp_Ax3, gp_Dir, gp_Pnt
+
+base = Geom_CylindricalSurface(gp_Ax3(gp_Pnt(1, 2, 3), gp_Dir(0, 0, 1)), 2.5)
+trimmed = Geom_RectangularTrimmedSurface(base, 0, 3.14159, -3, 3)
+face = cq.Face(BRepBuilderAPI_MakeFace(trimmed, 1e-7).Face())
+surf = BRep_Tool.Surface_s(face.wrapped)
+
+print(type(surf).__name__)              # Geom_RectangularTrimmedSurface
+print(hasattr(surf, "Axis"))            # False
+basis = surf.BasisSurface()
+print(type(basis).__name__)             # Geom_CylindricalSurface
+print(basis.Radius())                   # 2.5
+print(basis.Axis().Location().X())      # 1.0
+```
+**预期行为**：wrapper 可通过 `BasisSurface()` 解包，底层圆柱保留半径与轴线。
+**实际结果**：符合预期；未解包时 `Geom_RectangularTrimmedSurface` 没有 `Axis()`。
+**结论**：L1 圆柱几何提取必须统一解包 `BasisSurface()`，不能假设 `Surface_s()` 直接返回 `Geom_CylindricalSurface`。

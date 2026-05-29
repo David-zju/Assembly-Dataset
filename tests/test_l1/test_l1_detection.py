@@ -7,7 +7,7 @@ from pathlib import Path
 import cadquery as cq
 import math
 from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeFace
-from OCP.Geom import Geom_CylindricalSurface
+from OCP.Geom import Geom_CylindricalSurface, Geom_Plane, Geom_RectangularTrimmedSurface
 from OCP.gp import gp_Ax3, gp_Dir, gp_Pnt
 
 from src.common.data_models import FaceMetadata
@@ -19,6 +19,7 @@ from src.l0_face_extraction.step_importer import import_step_file
 from src.l1_contact_detection.cylindrical_contact import detect_cylindrical_contact
 from src.l1_contact_detection.l1_output import build_l1_output
 from src.l1_contact_detection.planar_contact import detect_planar_contact
+from src.l1_contact_detection.geometry_extractors import cylinder_geometry, plane_geometry
 from src.l1_contact_detection.tangency_contact import detect_tangency_contact
 
 FIXTURE = Path("tests/fixtures/simple_l0_l1_assembly.step")
@@ -70,6 +71,33 @@ def _partial_cylinder_face(
     if reversed_orientation:
         return cq.Face(face.wrapped.Reversed())
     return face
+
+
+def test_geometry_extractors_unwrap_rectangular_trimmed_surfaces() -> None:
+    """验证 STEP 常见 trimmed surface wrapper 可解包到平面/圆柱底层几何。"""
+    plane_surface = Geom_RectangularTrimmedSurface(
+        Geom_Plane(gp_Ax3(gp_Pnt(0, 0, 0), gp_Dir(0, 0, 1))),
+        -5,
+        5,
+        -4,
+        4,
+    )
+    plane_face = cq.Face(BRepBuilderAPI_MakeFace(plane_surface, 1e-7).Face())
+    plane = plane_geometry(plane_face)
+
+    cylinder_surface = Geom_RectangularTrimmedSurface(
+        Geom_CylindricalSurface(gp_Ax3(gp_Pnt(1, 2, 3), gp_Dir(0, 0, 1)), 2.5),
+        0,
+        math.pi,
+        -3,
+        3,
+    )
+    cylinder_face = cq.Face(BRepBuilderAPI_MakeFace(cylinder_surface, 1e-7).Face())
+    cylinder = cylinder_geometry(cylinder_face)
+
+    assert math.isclose(plane.plane.Location().Z(), 0.0, abs_tol=1e-9)
+    assert math.isclose(cylinder.radius, 2.5, rel_tol=1e-9)
+    assert cylinder.axis_location == (1.0, 2.0, 3.0)
 
 
 def test_planar_contact_detected_and_same_part_skipped() -> None:

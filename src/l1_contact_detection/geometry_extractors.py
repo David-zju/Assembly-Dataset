@@ -1,4 +1,9 @@
-"""L1 几何属性提取辅助函数。"""
+"""L1 几何属性提取辅助函数。
+
+本模块统一封装 CadQuery/OCP face 到 L1 判定所需几何参数的转换。
+调用方只需要传入 L0 保留的 `cq.Face`，无需关心 STEP 中曲面是否被
+`Geom_RectangularTrimmedSurface` 等 wrapper 包裹。
+"""
 
 from __future__ import annotations
 
@@ -59,9 +64,37 @@ def face_aabb(face: cq.Face) -> AABB:
     return AABB(float(bbox.xmin), float(bbox.xmax), float(bbox.ymin), float(bbox.ymax), float(bbox.zmin), float(bbox.zmax))
 
 
+def unwrapped_surface(face: cq.Face) -> Any:
+    """返回 face 的底层几何曲面，剥离 STEP 中常见的 trimmed/offset wrapper。
+
+    Args:
+        face: CadQuery face。
+
+    Returns:
+        Any: OCP `Geom_Surface` 子类。对 `Geom_RectangularTrimmedSurface`，
+        返回其 `BasisSurface()`；若后续遇到多层 wrapper，会继续向内解包。
+
+    Example:
+        `surface = unwrapped_surface(face)` 后，可对 PLANE 调用 `surface.Pln()`，
+        对 CYLINDER 调用 `surface.Axis()` / `surface.Radius()`。
+    """
+    surface = BRep_Tool.Surface_s(face.wrapped)
+    seen_ids: set[int] = set()
+    while hasattr(surface, "BasisSurface"):
+        current_id = id(surface)
+        if current_id in seen_ids:
+            break
+        seen_ids.add(current_id)
+        basis = surface.BasisSurface()
+        if basis is None or basis is surface:
+            break
+        surface = basis
+    return surface
+
+
 def plane_geometry(face: cq.Face) -> PlaneGeometry:
     """提取平面 face 的 gp_Pln、材料外法向量和中心点。"""
-    surface = BRep_Tool.Surface_s(face.wrapped)
+    surface = unwrapped_surface(face)
     return PlaneGeometry(plane=surface.Pln(), normal=normal_at_mid(face), center=center_of_face(face))
 
 
@@ -82,7 +115,7 @@ def cylinder_kind(face: cq.Face, axis: gp_Ax1) -> str:
 
 def cylinder_geometry(face: cq.Face) -> CylinderGeometry:
     """提取圆柱 face 的轴线、半径、中心点和内外分类。"""
-    surface = BRep_Tool.Surface_s(face.wrapped)
+    surface = unwrapped_surface(face)
     axis = surface.Axis()
     return CylinderGeometry(
         axis=axis,

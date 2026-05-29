@@ -74,6 +74,8 @@ L4  Pattern (set-to-set) / Hub (one-to-many)
   - 搜索特定类：`https://cadquery.readthedocs.io/en/latest/search.html?q=<关键词>`
   - 快速入门示例：`https://cadquery.readthedocs.io/en/latest/quickstart.html`
 
+- ** vscode-ocp-cad-viewer 文档（也即ocp_vscode文档）**：[https://github.com/bernhard-42/vscode-ocp-cad-viewer](https://github.com/bernhard-42/vscode-ocp-cad-viewer/tree/main/docs)
+
 ## 注意事项
 
 - STEP 文件中的中文名称可能经过多重错误编码转换导致乱码（常见链：UTF-8 字节被当作 Latin-1 解释后重新编码），需要用 [test.py](test.py) 反推正确编码链。
