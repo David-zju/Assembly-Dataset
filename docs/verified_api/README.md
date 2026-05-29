@@ -17,6 +17,7 @@
 | [assembly_import.md](assembly_import.md) | 装配体导入：Assembly.load、importStep、遍历与 Compound 处理 |
 | [spatial_math.md](spatial_math.md) | 空间计算：轴线间最短距离、轴线夹角、点到平面距离 |
 | [persistence_scheme.md](persistence_scheme.md) | L0→L1 持久化方案：face_uid 映射方案选择与序列化格式 |
+| [ocp_vscode_visualization.md](ocp_vscode_visualization.md) | ocp_vscode 可视化：show/show_object、颜色、透明度、对象树与 dry-run 验证 |
 
 ## 文档规范
 

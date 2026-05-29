@@ -92,7 +92,8 @@ configs/
 ├── thresholds.yaml             几何容差（平面距离、角度、半径比、搜索半径等）
 └── logging.yaml                日志级别与输出目标
 
-scripts/                        CLI 入口脚本（运行管道、可视化、导出等）
+scripts/                        CLI 入口脚本（运行管道、可视化、导出等），
+                                使用说明统一维护在 scripts/readme.md
 
 examples/                       使用示例与工具脚本（含已有的 split.py）
 
@@ -215,6 +216,12 @@ L1 FaceContact 的两个 face 必须属于不同 Part。同一 Part 内的面邻
 - 所有几何容差从 `configs/thresholds.yaml` 加载，禁止硬编码
 - `common/` 提供统一的容差访问接口
 - 管道行为（启用层级、并行度、输出格式、输出目录）从 `configs/pipeline.yaml` 加载
+
+### 脚本文档
+
+- `scripts/readme.md` 是 `scripts/` 目录下 CLI 入口脚本的权威使用索引。
+- 每个脚本都必须在 `scripts/readme.md` 中说明用途、运行命令、关键参数、输入输出和环境注意事项。
+- 新增、删除或修改 `scripts/` 下的脚本时，必须同步更新 `scripts/readme.md`，避免脚本行为与使用说明漂移。
 
 ### 序列化
 

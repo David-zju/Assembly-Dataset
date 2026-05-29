@@ -51,6 +51,7 @@ L4  Pattern (set-to-set) / Hub (one-to-many)
 ## 关键文件
 
 - [examples/split.py](examples/split.py) — 将装配体 STEP 文件拆分为独立零件 STEP。使用 `cadquery.Assembly.load()` 解析，对每个 component 用 `cq.exporters.export()` 导出。若解析失败则回退到 `cq.importers.importStep()` 提取 solids。
+- [scripts/readme.md](scripts/readme.md) — `scripts/` 下 CLI 入口脚本的使用说明。新增、删除或修改脚本时必须同步维护该文件。
 - [test.py](test.py) — 编码检测工具。穷举编码转换链寻找将乱码字节还原为中文的路径，用于处理 STEP 文件中编码损坏的中文零件名。
 - [test_case/](test_case/) — 测试用 STEP 装配体文件，中文零件名有乱码问题。
 
@@ -87,6 +88,7 @@ L4  Pattern (set-to-set) / Hub (one-to-many)
 - 本项目基于openspec的SDD规范开发，每次做出代码修改时请务必同步到对应文档中，（bug修复有关的内容也包括）。
 - 所有的文档请使用中文编写，以便用户阅读。
 - 编写的代码请用中文编写必要的注释。至少要为每个函数和模块文件编写注释，明确说明用途、参数解释与用例。
+- 新增、删除或修改 `scripts/` 下的脚本时，请同步更新 [scripts/readme.md](scripts/readme.md)，说明脚本用途、运行命令、关键参数、输入输出和环境注意事项。
 - 智能体应通过“渐进式披露”原则读取文档中的相关文件，例如cadquery有关的文档。当你不清楚有关API的说明、如何使用，或者当你的上下文中已不存在有关内容时，请务必将有关内容加载到你的上下文中。严禁随意猜测。
 - 执行过程必须严格遵守根目录下的宪法级文档（如 `ARCHITECTURE.md`等）。
 - 在设计或实施完成后，使用如下格式向我汇报：(1) 你通过什么方式完成了什么事情，以及你为什么这么做； (2) 你修改了哪些文件； (3) 目前的潜在风险或未验证项。
