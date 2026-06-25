@@ -86,6 +86,12 @@ class ContactBrowser(cmd.Cmd):
         """返回当前过滤摘要。"""
         return f"contacts={len(self.contacts)} type={self.criteria.contact_type or '*'} needs_exact={self.criteria.needs_exact} min_conf={self.criteria.min_confidence}"
 
+    def _current_contact_message(self, contact: FaceContact) -> str:
+        """返回当前正在查看的 contact 位置说明。"""
+        if self.contacts and self.contacts[self.current_index].contact_uid == contact.contact_uid:
+            return f"当前查看: {self.current_index + 1}/{len(self.contacts)} {contact.contact_uid}"
+        return f"当前查看: 当前过滤列表外 {contact.contact_uid}"
+
     def do_list(self, arg: str) -> None:
         """list [N]：列出前 N 条当前 contacts。"""
         limit = int(arg.strip() or "20")
@@ -105,12 +111,13 @@ class ContactBrowser(cmd.Cmd):
         value = arg.strip()
         try:
             contact = self._contact_from_arg(value) if value else self._contact_from_arg(str(self.current_index))
+            print(self._current_contact_message(contact))
             if self.args.context == "all":
                 print("提示: --context all 可能在大型模型上较慢。")
             scene = build_l1_contact_scene(self.data, contact.contact_uid, context=self.args.context)
-            for row in scene_to_debug_rows(scene):
-                print(f"- {row['role']}: {row['name']} color={row['color']} alpha={row['alpha']}")
             if self.args.dry_run:
+                for row in scene_to_debug_rows(scene):
+                    print(f"- {row['role']}: {row['name']} color={row['color']} alpha={row['alpha']}")
                 return
             result = self.viewer.update_scene(scene, title=contact.contact_uid)
             print(result.message)

@@ -147,6 +147,25 @@ python scripts/browse_l1_contacts.py \
   --port 3939
 ```
 
+进入交互式浏览并显示所有零件（注意：大模型上可能较慢）：
+```bash
+python scripts/browse_l1_contacts.py \
+  --step test_case/simple_l0_l1_assembly.step \
+  --l0 outputs/simple_l0_l1_assembly/l0_output.json \
+  --l1 outputs/simple_l0_l1_assembly/l1_output.json \
+  --context all \
+  --port 3939
+```
+
+```bash
+python scripts/browse_l1_contacts.py \
+  --step test_case/001650主臂装配体1.step \
+  --l0 outputs/001650主臂装配体1/l0_output.json \
+  --l1 outputs/001650主臂装配体1/l1_output.json \
+  --context all \
+  --port 3939
+```
+
 带初始过滤条件进入：
 
 ```bash
@@ -169,15 +188,15 @@ python scripts/browse_l1_contacts.py \
 - `--sort contact_uid|confidence|contact_type`：初始排序字段。
 - `--desc`：降序排序。
 - `--show`：非交互模式，传入 `contact_uid` 或当前列表 index 后直接显示。
-- `--dry-run`：只打印场景对象，不连接 Viewer。
+- `--dry-run`：只打印场景对象明细，不连接 Viewer；正常连接 Viewer 时不会打印 `context_all` 等场景对象列表。
 - `--port`：OCP CAD Viewer 后端端口。
 
 交互命令：
 
 - `list [N]`：列出当前过滤结果前 N 条，默认 20。
-- `show [INDEX_OR_CONTACT_UID]`：显示指定 index 或 `contact_uid`；不传参数时显示当前位置。
-- `j` / `next`：移动到下一条并显示。
-- `k` / `prev`：移动到上一条并显示。
+- `show [INDEX_OR_CONTACT_UID]`：显示指定 index 或 `contact_uid`；不传参数时显示当前位置，并输出当前查看的是第几条 contact。
+- `j` / `next`：移动到下一条并显示，同时输出当前查看的是第几条 contact。
+- `k` / `prev`：移动到上一条并显示，同时输出当前查看的是第几条 contact。
 - `search TEXT`：按 `contact_uid`、`part_uid`、`face_uid` 或 `contact_type` 搜索。
 - `type TYPE|all`：按 contact 类型过滤，`all` 表示清除该过滤。
 - `exact on|off|all`：按 `needs_exact_overlap` 过滤。
